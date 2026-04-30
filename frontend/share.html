@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sagini AI — Shared Report</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 38'><rect width='38' height='38' rx='10' fill='%230d1f4e'/><text x='19' y='27' font-family='Georgia,serif' font-size='24' font-weight='700' fill='%23b8962e' text-anchor='middle'>S</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#080d1a;--surface:#0f1829;--surface2:#162035;--border:#1e2d4a;
+      --text:#e8edf5;--text2:#8896b0;--text3:#4a5870;
+      --accent:#d4af47;--navy:#0d1f4e;--navy2:#162660;--green:#2aad74;
+      --shadow:0 1px 4px rgba(0,0,0,0.3);--shadow-lg:0 8px 32px rgba(0,0,0,0.4);
+    }
+    * { font-family:'Sora',sans-serif; box-sizing:border-box; margin:0; padding:0; }
+    .mono { font-family:'JetBrains Mono',monospace; }
+    body { background:var(--bg); color:var(--text); min-height:100vh; }
+
+    header { background:var(--navy); border-bottom:1px solid rgba(212,175,71,0.2); padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+    .logo-wrap { display:flex; align-items:center; gap:10px; }
+    .s-logo { width:34px; height:34px; background:var(--navy2); border-radius:9px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(212,175,71,0.3); }
+    .s-logo span { font-family:Georgia,serif; font-size:20px; font-weight:700; color:var(--accent); }
+    .logo-text { font-size:15px; font-weight:700; color:#fff; }
+    .logo-sub { font-size:9px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; }
+    .shared-badge { font-size:10px; font-weight:700; padding:4px 12px; border-radius:99px; background:rgba(212,175,71,0.12); color:var(--accent); border:1px solid rgba(212,175,71,0.25); letter-spacing:1px; text-transform:uppercase; }
+
+    .main { max-width:1200px; margin:0 auto; padding:36px 28px; }
+
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px; box-shadow:var(--shadow); }
+    .section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--text3); margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+    .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; box-shadow:var(--shadow); }
+    .stat-label { font-size:9px; color:var(--text3); font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+    .stat-value { font-size:26px; font-weight:700; letter-spacing:-1px; }
+
+    .insight-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px; position:relative; overflow:hidden; margin-bottom:28px; box-shadow:var(--shadow); }
+    .insight-box::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(to bottom,var(--navy),var(--accent)); }
+    .insight-text { font-size:13px; color:var(--text2); line-height:1.8; white-space:pre-line; }
+
+    .charts-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:28px; }
+    .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; box-shadow:var(--shadow); }
+
+    .col-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:28px; }
+
+    table { border-collapse:collapse; width:100%; font-size:12px; }
+    th { background:var(--navy); color:rgba(255,255,255,0.65); padding:10px 14px; text-align:left; font-weight:600; font-size:9px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; }
+    td { padding:9px 14px; border-bottom:1px solid var(--border); color:var(--text2); white-space:nowrap; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--surface2); }
+    .table-wrap { overflow-x:auto; border-radius:10px; border:1px solid var(--border); box-shadow:var(--shadow); margin-bottom:28px; }
+
+    /* PIN screen */
+    .pin-screen { min-height:80vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; text-align:center; padding:40px; }
+    .pin-input { width:200px; text-align:center; padding:14px; font-size:20px; font-family:'JetBrains Mono',monospace; background:var(--surface); border:1.5px solid var(--border); border-radius:10px; color:var(--text); outline:none; letter-spacing:4px; }
+    .pin-input:focus { border-color:var(--accent); }
+    .pin-btn { padding:12px 32px; background:var(--navy); color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:Sora,sans-serif; }
+    .pin-btn:hover { background:var(--navy2); }
+    .pin-error { color:#dc2626; font-size:12px; }
+
+    /* CTA banner */
+    .cta-banner { background:linear-gradient(135deg,var(--navy),#1e3580); border:1px solid rgba(212,175,71,0.2); border-radius:16px; padding:32px; text-align:center; margin-bottom:28px; }
+
+    footer { background:var(--navy); padding:16px 28px; }
+    footer p { font-size:10px; color:rgba(255,255,255,0.35); text-align:center; }
+
+    ::-webkit-scrollbar { width:4px; height:4px; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+    .fade-in { animation:fadeIn 0.4s ease forwards; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <div class="s-logo"><span>S</span></div>
+    <div>
+      <div class="logo-text">Sagini AI Analytics</div>
+      <div class="logo-sub">Data Intelligence Platform</div>
+    </div>
+  </div>
+  <span class="shared-badge">Shared Report</span>
+</header>
+
+<!-- PIN Screen -->
+<div id="pin-screen" class="pin-screen" style="display:none;position:relative;z-index:10;background:var(--bg)">
+  <div style="width:52px;height:52px;background:var(--navy);border-radius:14px;display:flex;align-items:center;justify-content:center">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+  </div>
+  <h2 style="font-size:20px;font-weight:700;color:var(--text)">PIN Protected Report</h2>
+  <p style="font-size:13px;color:var(--text2);max-width:320px;line-height:1.6">This report is protected. Enter the PIN provided by the sender to view it.</p>
+  <input type="password" id="pin-input" class="pin-input" placeholder="••••" maxlength="8" onkeydown="if(event.key==='Enter')verifyPin()">
+  <button class="pin-btn" onclick="verifyPin()">View Report</button>
+  <p id="pin-error" class="pin-error" style="display:none">Incorrect PIN. Please try again.</p>
+</div>
+
+<!-- Loading -->
+<div id="loading-screen" class="pin-screen">
+  <div style="width:52px;height:52px;background:var(--navy);border-radius:14px;display:flex;align-items:center;justify-content:center">
+    <span style="font-family:Georgia,serif;font-size:30px;font-weight:700;color:var(--accent)">S</span>
+  </div>
+  <p style="font-size:14px;color:var(--text2)">Loading report...</p>
+  <div style="width:200px;background:var(--border);border-radius:99px;height:4px;overflow:hidden">
+    <div style="height:100%;background:var(--accent);border-radius:99px;width:60%;animation:load 1.2s ease-in-out infinite alternate"></div>
+  </div>
+  <style>@keyframes load{from{width:20%}to{width:90%}}</style>
+</div>
+
+<!-- Not found -->
+<div id="notfound-screen" class="pin-screen" style="display:none">
+  <h2 style="font-size:20px;font-weight:700;color:var(--text)">Report Not Found</h2>
+  <p style="font-size:13px;color:var(--text2);max-width:300px;line-height:1.6">This report may have expired or the link is invalid.</p>
+  <a href="/" style="padding:10px 24px;background:var(--navy);color:white;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">Go to Sagini AI</a>
+</div>
+
+<!-- Full Report -->
+<div id="report" class="main fade-in" style="display:none">
+
+  <!-- Title -->
+  <div style="margin-bottom:28px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <h1 style="font-size:24px;font-weight:700;color:var(--text);letter-spacing:-0.5px" id="report-title"></h1>
+    </div>
+    <p style="font-size:12px;color:var(--text3)" id="report-meta"></p>
+  </div>
+
+  <!-- Stats -->
+  <div class="section-title">Overview</div>
+  <div class="stat-grid" id="stat-grid"></div>
+
+  <!-- AI Insights -->
+  <div class="section-title">Sagini AI Analysis</div>
+  <div class="insight-box">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="width:28px;height:28px;background:var(--navy);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:var(--accent)">S</span>
+      </div>
+      <span style="font-size:13px;font-weight:600;color:var(--text)">Sagini AI Analysis</span>
+    </div>
+    <div id="report-insights" class="insight-text"></div>
+  </div>
+
+  <!-- Charts -->
+  <div id="charts-section" style="display:none">
+    <div class="section-title">Visualisations</div>
+    <div class="charts-grid" id="charts-grid"></div>
+  </div>
+
+  <!-- Column Summary -->
+  <div class="section-title">Column Summary</div>
+  <div class="col-grid" id="col-grid"></div>
+
+  <!-- Data Preview -->
+  <div class="section-title">Data Preview <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(first 20 rows)</span></div>
+  <div class="table-wrap">
+    <table id="preview-table"></table>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-banner">
+    <div style="width:44px;height:44px;background:rgba(255,255,255,0.08);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+      <span style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:var(--accent)">S</span>
+    </div>
+    <h3 style="font-size:18px;font-weight:700;color:white;margin-bottom:8px">Analyse your own data with Sagini AI</h3>
+    <p style="font-size:13px;color:rgba(255,255,255,0.6);max-width:400px;margin:0 auto 20px;line-height:1.6">Upload any CSV, Excel, PDF or Word file and get instant AI-powered insights, charts and data quality reports.</p>
+    <a href="/" style="display:inline-block;padding:12px 28px;background:var(--accent);color:#0d1526;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:-0.2px">Try Sagini AI — Free</a>
+  </div>
+
+</div>
+
+<footer><p>Shared via Sagini AI Analytics · Data Intelligence Platform · © 2026 Sagini AI Analytics</p></footer>
+
+<script>
+  const API = window.location.origin;
+  const shareId = window.location.pathname.split('/').pop();
+
+  async function loadReport(pin = '') {
+    try {
+      const url = pin ? `${API}/api/share/${shareId}?pin=${encodeURIComponent(pin)}` : `${API}/api/share/${shareId}`;
+      const res = await fetch(url);
+      if (res.status === 401) {
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('pin-screen').style.display = 'flex';
+        if (pin) document.getElementById('pin-error').style.display = 'block';
+        return;
+      }
+      if (res.status === 404) {
+        document.getElementById('loading-screen').style.display = 'none';
+        document.getElementById('notfound-screen').style.display = 'flex';
+        return;
+      }
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      // Hide ALL screens before rendering
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('pin-screen').style.display = 'none';
+      document.getElementById('notfound-screen').style.display = 'none';
+      renderReport(data);
+    } catch(e) {
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('notfound-screen').style.display = 'flex';
+    }
+  }
+
+  function verifyPin() {
+    const pin = document.getElementById('pin-input').value.trim();
+    if (!pin) return;
+    document.getElementById('pin-error').style.display = 'none';
+    loadReport(pin);
+  }
+
+  function renderReport(data) {
+    document.getElementById('report').style.display = 'block';
+    document.title = `${data.filename} — Sagini AI Report`;
+
+    document.getElementById('report-title').textContent = data.filename;
+    document.getElementById('report-meta').textContent =
+      `${data.summary.rows.toLocaleString()} rows · ${data.summary.columns} columns · Shared on ${new Date(data.created_at).toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'})}`;
+
+    // Stats
+    document.getElementById('stat-grid').innerHTML = [
+      { label:'Total Rows', value: data.summary.rows.toLocaleString(), color:'var(--accent)' },
+      { label:'Columns', value: data.summary.columns, color:'#6366f1' },
+      { label:'Empty Cells', value: data.summary.missing_values.toLocaleString(), color:'#d97706' },
+      { label:'Duplicate Rows', value: data.summary.duplicate_rows, color:'#dc2626' },
+    ].map(s => `
+      <div class="stat-card">
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-value" style="color:${s.color}">${s.value}</div>
+      </div>`).join('');
+
+    // Insights
+    function renderMarkdown(text) {
+        if (!text) return '';
+        return text
+            .replace(/#{1,3} (.+)/g, '<strong style="font-size:14px;color:var(--text);display:block;margin:12px 0 4px">$1</strong>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/^[-•] (.+)/gm, '<span style="display:block;padding-left:12px;margin:3px 0">— $1</span>')
+            .replace(/^\d+\. (.+)/gm, '<span style="display:block;padding-left:12px;margin:3px 0">$1</span>')
+            .replace(/\n\n/g, '<br><br>')
+            .replace(/\n/g, '<br>');
+    }
+    document.getElementById('report-insights').innerHTML = renderMarkdown(data.insights || 'No AI analysis available for this report.');
+
+    // Charts
+    if (data.charts && data.charts.length > 0) {
+      document.getElementById('charts-section').style.display = 'block';
+      const grid = document.getElementById('charts-grid');
+      grid.innerHTML = '';
+      data.charts.forEach((chart, i) => {
+        const div = document.createElement('div');
+        div.className = 'chart-card';
+        div.id = `schart-${i}`;
+        grid.appendChild(div);
+        Plotly.newPlot(`schart-${i}`, chart.data.data, {
+          ...chart.data.layout,
+          margin:{t:36,b:40,l:40,r:12}, height:260,
+          paper_bgcolor:'#0f1829', plot_bgcolor:'#0f1829',
+          font:{color:'#e8edf5',family:'Sora'},
+          xaxis:{...chart.data.layout?.xaxis,gridcolor:'#1e2d4a',linecolor:'#1e2d4a'},
+          yaxis:{...chart.data.layout?.yaxis,gridcolor:'#1e2d4a',linecolor:'#1e2d4a'},
+        }, {responsive:true, displayModeBar:false});
+      });
+    }
+
+    // Column stats
+    const stats = data.stats || {};
+    const filtered = Object.entries(stats)
+      .filter(([col]) => !col.match(/\.\d+$/) && !col.startsWith('col_') && col !== 'Sheet')
+      .slice(0, 9);
+    document.getElementById('col-grid').innerHTML = filtered.map(([col, stat]) => `
+      <div class="stat-card" style="padding:16px">
+        <p style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${col}</p>
+        <p class="mono" style="font-size:9px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">${stat.kind||stat.type}</p>
+        ${stat.kind==='numeric'?`
+          <div style="display:flex;flex-direction:column;gap:5px">
+            ${[['Average',stat.mean],['Min',stat.min],['Max',stat.max]].map(([k,v])=>
+              `<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3)">${k}</span><span class="mono" style="color:var(--text)">${v??'—'}</span></div>`
+            ).join('')}
+          </div>`:`
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3)">Unique</span><span class="mono" style="color:var(--text)">${stat.unique_count??'—'}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3)">Empty</span><span class="mono" style="color:var(--text)">${stat.null_count??'—'}</span></div>
+          </div>`}
+      </div>`).join('');
+
+    // Preview table
+    if (data.preview && data.preview.length > 0) {
+      const cols = Object.keys(data.preview[0]);
+      document.getElementById('preview-table').innerHTML =
+        '<thead><tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr></thead>' +
+        '<tbody>' + data.preview.map(row=>`<tr>${cols.map(c=>`<td>${row[c]??'—'}</td>`).join('')}</tr>`).join('') + '</tbody>';
+    }
+  }
+
+  loadReport();
+</script>
+</body>
+</html>

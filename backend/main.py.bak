@@ -1,0 +1,764 @@
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import json, io, os
+from dotenv import load_dotenv
+import anthropic
+from pydantic import BaseModel
+import warnings, pdfplumber
+
+warnings.filterwarnings('ignore')
+load_dotenv()
+
+app = FastAPI(title="Sagini AI Analytics", version="2.0.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+current_data = {}
+SUPPORTED_FORMATS = ('.csv', '.xlsx', '.xls', '.pdf', '.json', '.tsv', '.xml', '.parquet', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.heic', '.heif', '.docx', '.doc')
+
+class QueryRequest(BaseModel):
+    question: str
+
+def clean_df(df):
+    df = df.copy()
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = ['_'.join(map(str, c)).strip() for c in df.columns]
+    cols = []
+    seen = {}
+    for c in df.columns:
+        c = str(c).strip()
+        if c in seen:
+            seen[c] += 1
+            cols.append(f"{c}_{seen[c]}")
+        else:
+            seen[c] = 0
+            cols.append(c)
+    df.columns = cols
+    df.dropna(how='all', inplace=True)
+    return df
+
+def parse_csv(contents):
+    for enc in ['utf-8', 'latin-1', 'cp1252']:
+        try:
+            return pd.read_csv(io.BytesIO(contents), encoding=enc)
+        except UnicodeDecodeError:
+            continue
+    raise ValueError("Could not decode CSV file")
+
+def parse_tsv(contents):
+    for enc in ['utf-8', 'latin-1', 'cp1252']:
+        try:
+            return pd.read_csv(io.BytesIO(contents), sep='\t', encoding=enc)
+        except UnicodeDecodeError:
+            continue
+    raise ValueError("Could not decode TSV file")
+
+def find_header_row(df_raw):
+    """Find the row index where real headers are"""
+    for i, row in df_raw.iterrows():
+        non_null = row.dropna()
+        str_vals = [v for v in non_null if isinstance(v, str) and len(v.strip()) > 1]
+        if len(str_vals) >= 2:
+            return i
+    return 0
+
+def parse_sheet(xl, name):
+    """Parse a single sheet with smart header detection"""
+    df_raw = xl.parse(name, header=None)
+    if df_raw.empty:
+        return None
+    header_row = find_header_row(df_raw)
+    df = xl.parse(name, header=header_row)
+    df.columns = [str(c).strip() if not str(c).startswith('Unnamed') else f"col_{i}" 
+                  for i, c in enumerate(df.columns)]
+    df.dropna(how='all', inplace=True)
+    df.dropna(axis=1, how='all', inplace=True)
+    if df.empty or len(df.columns) < 2:
+        return None
+    return df
+
+def parse_excel(contents):
+    try:
+        xl = pd.ExcelFile(io.BytesIO(contents), engine='openpyxl')
+    except Exception:
+        xl = pd.ExcelFile(io.BytesIO(contents), engine='xlrd')
+    # Parse all sheets, pick the one with most usable data
+    best_df = None
+    best_score = 0
+    for name in xl.sheet_names:
+        try:
+            df_sheet = parse_sheet(xl, name)
+            if df_sheet is not None and not df_sheet.empty:
+                score = df_sheet.shape[0] * df_sheet.shape[1]
+                if score > best_score:
+                    best_score = score
+                    best_df = df_sheet
+                    best_df.insert(0, 'Sheet', str(name)) if 'Sheet' not in best_df.columns else None
+        except Exception:
+            pass
+    if best_df is None:
+        raise ValueError("No readable sheets found")
+    return best_df
+
+def parse_pdf(contents):
+    tables = []
+    with pdfplumber.open(io.BytesIO(contents)) as pdf:
+        for page in pdf.pages:
+            for table in (page.extract_tables() or []):
+                if table and len(table) > 1:
+                    headers = [str(h).strip() if h else f"col_{i}" for i, h in enumerate(table[0])]
+                    seen = {}
+                    clean = []
+                    for h in headers:
+                        if h in seen:
+                            seen[h] += 1
+                            clean.append(f"{h}_{seen[h]}")
+                        else:
+                            seen[h] = 0
+                            clean.append(h)
+                    tables.append(pd.DataFrame(table[1:], columns=clean))
+
+    if tables:
+        df = pd.concat(tables, ignore_index=True)
+        df.dropna(how='all', inplace=True)
+        df.dropna(axis=1, how='all', inplace=True)
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
+
+    # No tables found - try OCR for scanned PDFs
+    try:
+        import pytesseract
+        from pdf2image import convert_from_bytes
+        images = convert_from_bytes(contents, dpi=200)
+        ocr_lines = []
+        for img in images:
+            text = pytesseract.image_to_string(img)
+            for line in text.splitlines():
+                line = line.strip()
+                if line and len(line) > 2:
+                    ocr_lines.append({'Content': line})
+        if ocr_lines:
+            # Try to parse as bank statement
+            import re
+            date_pat = re.compile(r'\d{1,2}[-/]\w{3,9}[-/]\d{2,4}|\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2}-\w{3}-\d{2,4}')
+            amount_pat = re.compile(r'[\d,]+\.\d{2}')
+            bank_rows = []
+            for item in ocr_lines:
+                line = item["Content"]
+                dates = date_pat.findall(line)
+                amounts = amount_pat.findall(line)
+                if dates and amounts:
+                    bank_rows.append({
+                        "Date": dates[0],
+                        "Description": line,
+                        "Amount": amounts[0] if amounts else "",
+                        "Balance": amounts[-1] if len(amounts) > 1 else ""
+                    })
+            if len(bank_rows) > 5:
+                return pd.DataFrame(bank_rows)
+            return pd.DataFrame(ocr_lines)
+        raise ValueError("OCR returned no text.")
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError(f"Scanned PDF OCR failed: {str(e)}")
+
+def parse_json_file(contents):
+    data = json.loads(contents)
+    if isinstance(data, list):
+        return pd.DataFrame(data)
+    if isinstance(data, dict):
+        for key in ['data', 'records', 'results', 'rows', 'items']:
+            if key in data and isinstance(data[key], list):
+                return pd.DataFrame(data[key])
+        return pd.DataFrame([data])
+    raise ValueError("JSON format not recognised")
+
+def parse_docx(contents):
+    from docx import Document
+    doc = Document(io.BytesIO(contents))
+    rows = []
+    # Extract tables first
+    for table in doc.tables:
+        headers = [cell.text.strip() for cell in table.rows[0].cells] if table.rows else []
+        for row in table.rows[1:]:
+            cells = [cell.text.strip() for cell in row.cells]
+            if any(cells):
+                rows.append(dict(zip(headers, cells)))
+    if rows:
+        return pd.DataFrame(rows)
+    # Fall back to paragraphs as text data
+    paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    if paragraphs:
+        return pd.DataFrame({"Content": paragraphs})
+    raise ValueError("No readable content found in Word document")
+
+def parse_file(contents, filename):
+    name = filename.lower()
+    if name.endswith('.csv'):           return parse_csv(contents)
+    if name.endswith('.tsv'):           return parse_tsv(contents)
+    if name.endswith(('.xlsx','.xls')): return parse_excel(contents)
+    if name.endswith('.pdf'):           return parse_pdf(contents)
+    if name.endswith('.json'):          return parse_json_file(contents)
+    if name.endswith('.xml'):           return pd.read_xml(io.BytesIO(contents))
+    if name.endswith('.parquet'):       return pd.read_parquet(io.BytesIO(contents))
+    if name.endswith(('.docx','.doc')):   return parse_docx(contents)
+    raise ValueError(f"Unsupported file type. Supported: {', '.join(SUPPORTED_FORMATS)}")
+
+def detect_dates(df):
+    df = df.copy()
+    date_kws = ['date','time','year','month','day','created','updated','timestamp','datetime','dob','birth','expiry','start','end']
+    # Never parse these as dates
+    skip_kws = ['interest','amount','balance','payment','salary','price','cost','fee','fine','total','sum','rate','value','score','count']
+    for col in list(df.columns):
+        try:
+            series = df[col]
+            if not isinstance(series, pd.Series):
+                continue
+            if pd.api.types.is_datetime64_any_dtype(series):
+                continue
+            if pd.api.types.is_numeric_dtype(series):
+                sample = series.dropna()
+                if len(sample) > 0 and sample.between(30000, 60000).mean() > 0.8 and any(k in str(col).lower() for k in date_kws) and False:  # disabled - causes 1970 dates
+                    try:
+                        df[col] = pd.TimedeltaIndex(series, unit='d') + pd.Timestamp('1899-12-30')
+                        continue
+                    except Exception:
+                        pass
+            if str(series.dtype) == 'object':
+                name_hint = any(k in str(col).lower() for k in date_kws)
+                sample_str = ' '.join(series.dropna().astype(str).head(30).tolist())
+                content_hint = (sample_str.count('-') + sample_str.count('/')) >= 5
+                skip = any(k in str(col).lower() for k in skip_kws)
+            if (name_hint or content_hint) and not skip:
+                    try:
+                        parsed = pd.to_datetime(series, infer_datetime_format=True, errors='coerce')
+                        if parsed.notna().mean() >= 0.7:
+                            df[col] = parsed
+                    except Exception:
+                        pass
+        except Exception:
+            continue
+    return df
+
+def get_stats(df):
+    stats = {}
+    for col in list(df.columns):
+        try:
+            series = df[col]
+            if not isinstance(series, pd.Series):
+                continue
+            null_count = int(series.isnull().sum())
+            if pd.api.types.is_datetime64_any_dtype(series):
+                non_null = series.dropna()
+                stats[col] = {"type":"datetime","null_count":null_count,"kind":"datetime",
+                    "min": str(non_null.min().date()) if not non_null.empty else None,
+                    "max": str(non_null.max().date()) if not non_null.empty else None,
+                    "unique_count": int(series.nunique())}
+            elif pd.api.types.is_numeric_dtype(series):
+                non_null = series.dropna()
+                stats[col] = {"type":str(series.dtype),"null_count":null_count,"kind":"numeric",
+                    "mean": round(float(non_null.mean()),2) if not non_null.empty else None,
+                    "median": round(float(non_null.median()),2) if not non_null.empty else None,
+                    "std": round(float(non_null.std()),2) if not non_null.empty else None,
+                    "min": round(float(non_null.min()),2) if not non_null.empty else None,
+                    "max": round(float(non_null.max()),2) if not non_null.empty else None}
+            else:
+                stats[col] = {"type":str(series.dtype),"null_count":null_count,"kind":"categorical",
+                    "unique_count": int(series.nunique()),
+                    "top_values": {str(k): int(v) for k, v in series.value_counts().head(5).items()}}
+        except Exception:
+            continue
+    return stats
+
+COLORS = ["#c8692a","#e8834a","#6366f1","#2d7a5e","#d97706","#dc2626","#7c3aed","#0891b2"]
+
+def make_layout(title=""):
+    return dict(plot_bgcolor="white", paper_bgcolor="white",
+        font=dict(family="DM Sans, sans-serif", size=12),
+        title=dict(text=title, font=dict(size=13)),
+        margin=dict(t=44, b=44, l=44, r=16))
+
+def make_charts(df):
+    charts = []
+    try:
+        # Convert any object columns with numeric-looking data
+        for col in df.select_dtypes(include='object').columns:
+            try:
+                cleaned = df[col].str.replace(',', '', regex=False)
+                converted = pd.to_numeric(cleaned, errors='coerce')
+                if converted.notna().mean() > 0.5:
+                    df[col] = converted
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        # Only use clean, meaningful column names — skip duplicated ones like Interest.3, Fines.4
+        def is_clean_col(col):
+            import re
+            # Skip columns with .N suffix (duplicates from wide Excel sheets)
+            if re.search(r'\.\d+$', str(col)):
+                return False
+            # Skip generic unnamed columns
+            if str(col).startswith('col_') or str(col).startswith('Unnamed'):
+                return False
+            return True
+
+        all_num = df.select_dtypes(include=[np.number]).columns.tolist()
+        all_cat = df.select_dtypes(include=['object','category']).columns.tolist()
+        date_cols = [c for c in df.columns if pd.api.types.is_datetime64_any_dtype(df[c])]
+
+        num_cols = [c for c in all_num if is_clean_col(c)]
+        cat_cols = [c for c in all_cat if is_clean_col(c)]
+
+        # Fallback to all cols if filtering leaves nothing
+        if not num_cols: num_cols = all_num[:4]
+        if not cat_cols: cat_cols = all_cat[:3]
+
+        # 1. Bar chart — most meaningful: categorical vs numeric
+        if cat_cols and num_cols:
+            # Pick name-like column for x axis
+            name_col = next((c for c in cat_cols if any(k in c.lower() for k in ['name','person','member','client','borrower','category','type','department'])), cat_cols[0])
+            val_col = next((c for c in num_cols if any(k in c.lower() for k in ['amount','total','balance','salary','payment','principal','loan'])), num_cols[0])
+            if 2 <= df[name_col].nunique() <= 30:
+                grp = df.groupby(name_col)[val_col].sum().reset_index().sort_values(val_col, ascending=False).head(15)
+                fig = px.bar(grp, x=name_col, y=val_col, color_discrete_sequence=[COLORS[0]])
+                fig.update_layout(**make_layout(f"{val_col} by {name_col}"))
+                charts.append({"title":f"{val_col} by {name_col}","type":"bar","data":json.loads(fig.to_json())})
+
+        # 2. Pie chart — distribution of categorical col
+        for cc in cat_cols:
+            if 2 <= df[cc].nunique() <= 8:
+                counts = df[cc].value_counts().reset_index()
+                counts.columns = [cc,'count']
+                fig = px.pie(counts, names=cc, values='count', color_discrete_sequence=COLORS)
+                fig.update_layout(font=dict(family="DM Sans, sans-serif",size=12),title=dict(text=f"{cc} Breakdown",font=dict(size=13)))
+                charts.append({"title":f"{cc} Breakdown","type":"pie","data":json.loads(fig.to_json())})
+                break
+
+        # 3. Top N bar chart — e.g. top borrowers by amount
+        if cat_cols and num_cols:
+            name_col = next((c for c in cat_cols if any(k in c.lower() for k in ['name','person','member','client','borrower'])), None)
+            val_col = next((c for c in num_cols if any(k in c.lower() for k in ['amount','total','balance','principal','loan'])), None)
+            if name_col and val_col and name_col != cat_cols[0]:
+                top = df.groupby(name_col)[val_col].sum().reset_index().sort_values(val_col, ascending=False).head(10)
+                fig = px.bar(top, x=val_col, y=name_col, orientation='h', color_discrete_sequence=[COLORS[1]])
+                fig.update_layout(**make_layout(f"Top 10 by {val_col}"))
+                charts.append({"title":f"Top 10 by {val_col}","type":"bar","data":json.loads(fig.to_json())})
+
+        # 4. Time series if date col exists
+        if date_cols and num_cols:
+            dc = date_cols[0]
+            val_col = next((c for c in num_cols if any(k in c.lower() for k in ['amount','total','balance','payment','principal'])), num_cols[0])
+            df_s = df[[dc, val_col]].dropna().sort_values(dc)
+            if len(df_s) > 1:
+                fig = px.line(df_s, x=dc, y=val_col, color_discrete_sequence=[COLORS[0]], markers=True)
+                fig.update_layout(**make_layout(f"{val_col} over Time"))
+                charts.append({"title":f"{val_col} over Time","type":"line","data":json.loads(fig.to_json())})
+
+        # 4b. Line chart for numeric trends even without date col
+        if not date_cols and len(num_cols) >= 1 and cat_cols:
+            cat_col = cat_cols[0]
+            num_col = num_cols[0]
+            if df[cat_col].nunique() <= 20:
+                grp = df.groupby(cat_col)[num_col].mean().reset_index().sort_values(num_col)
+                fig = px.line(grp, x=cat_col, y=num_col, markers=True, color_discrete_sequence=[COLORS[2]])
+                fig.update_layout(**make_layout(f"{num_col} Trend by {cat_col}"))
+                charts.append({"title":f"{num_col} Trend","type":"line","data":json.loads(fig.to_json())})
+
+    except Exception as e:
+        pass
+    return charts
+
+def get_insights(df, stats):
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return "AI insights unavailable — please add your ANTHROPIC_API_KEY to the .env file."
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        summary = f"Dataset: {df.shape[0]} rows, {df.shape[1]} columns\nColumns: {', '.join(df.columns.tolist())}\nStats: {json.dumps(stats, indent=2, default=str)[:3000]}\nSample:\n{df.head(5).to_string()}"
+        msg = client.messages.create(model="claude-sonnet-4-5", max_tokens=1000,
+            messages=[{"role":"user","content":f"You are a data analyst. Analyse this dataset and provide clear, actionable insights.\n\n{summary}\n\nProvide:\n1. Brief overview\n2. Key patterns and trends\n3. Notable outliers\n4. 2-3 actionable recommendations\n\nConcise, professional, plain English."}])
+        return msg.content[0].text
+    except Exception as e:
+        return f"AI insights unavailable: {str(e)}"
+
+def to_json_safe(df):
+    df_copy = df.copy()
+    for col in df_copy.columns:
+        if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
+            df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d').where(df_copy[col].notna(), None)
+    # Replace nan/inf with None
+    df_copy = df_copy.replace([np.inf, -np.inf], np.nan)
+    df_copy = df_copy.where(pd.notnull(df_copy), None)
+    return json.loads(df_copy.to_json(orient="records", date_format="iso", default_handler=str))
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    global current_data
+    filename = file.filename
+    if not any(filename.lower().endswith(ext) for ext in SUPPORTED_FORMATS):
+        raise HTTPException(status_code=400, detail=f"Unsupported file type. Supported: {', '.join(SUPPORTED_FORMATS)}")
+    contents = await file.read()
+    try:
+        if filename.lower().endswith(('.xlsx', '.xls')):
+            try:
+                xl_engine = 'openpyxl' if filename.lower().endswith('.xlsx') else 'xlrd'
+                xl = pd.ExcelFile(io.BytesIO(contents), engine=xl_engine)
+                if len(xl.sheet_names) > 1:
+                    all_sheets = parse_excel(contents, store_sheets=True)
+                    current_data['all_sheets'] = all_sheets
+                    current_data['sheet_names'] = list(all_sheets.keys())
+                else:
+                    current_data['all_sheets'] = {}
+                    current_data['sheet_names'] = []
+            except Exception:
+                current_data['all_sheets'] = {}
+                current_data['sheet_names'] = []
+        df = parse_file(contents, filename)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {str(e)}")
+    if df.empty:
+        raise HTTPException(status_code=400, detail="File is empty or contains no readable data")
+    df = clean_df(df)
+    df = detect_dates(df)
+    for col in list(df.columns):
+        try:
+            series = df[col]
+            if isinstance(series, pd.Series) and str(series.dtype) == 'object':
+                converted = pd.to_numeric(series, errors='ignore')
+                if str(converted.dtype) != 'object':
+                    df[col] = converted
+        except Exception:
+            pass
+    stats = get_stats(df)
+    charts = make_charts(df)
+    insights = get_insights(df, stats)
+    current_data.update({"df": df, "stats": stats, "filename": filename})
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    date_cols = [c for c in df.columns if pd.api.types.is_datetime64_any_dtype(df[c])]
+    summary = {"rows":int(df.shape[0]),"columns":int(df.shape[1]),"column_names":df.columns.tolist(),
+        "numeric_columns":num_cols,"categorical_columns":df.select_dtypes(include=['object']).columns.tolist(),
+        "date_columns":date_cols,"missing_values":int(df.isnull().sum().sum()),"duplicate_rows":int(df.duplicated().sum())}
+    # Clean all nan/inf from the entire response
+    def clean(obj):
+        if isinstance(obj, dict):
+            return {k: clean(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [clean(i) for i in obj]
+        elif isinstance(obj, float) and (obj != obj or obj == float('inf') or obj == float('-inf')):
+            return None
+        return obj
+    response = {"filename":filename,"summary":summary,"stats":stats,"charts":charts,"insights":insights,"preview":to_json_safe(df.head(10))}
+    response['sheet_names'] = current_data.get('sheet_names', [])
+    return clean(response)
+
+@app.get("/api/cleaning-suggestions")
+async def cleaning_suggestions():
+    if "df" not in current_data:
+        raise HTTPException(status_code=400, detail="No data uploaded yet.")
+    df = current_data["df"]
+    suggestions = []
+
+    # Check duplicates first
+    dupes = int(df.duplicated().sum())
+    if dupes > 0:
+        suggestions.append({"column": "Entire dataset", "issue": f"{dupes} duplicate rows", "suggestion": f"Remove {dupes} duplicate rows to avoid skewing your analysis.", "severity": "high"})
+
+    for col in list(df.columns):
+        try:
+            import re
+            if re.search(r'\.\d+$', str(col)):
+                continue
+            series = df[col]
+            if not hasattr(series, 'isnull'):
+                continue
+            null_count = int(series.isnull().sum())
+            total = len(series)
+            if total == 0:
+                continue
+
+            # Missing values
+            if null_count > 0:
+                pct = round(null_count/total*100, 1)
+                if pct > 50:
+                    suggestions.append({"column": str(col), "issue": f"{pct}% empty", "suggestion": f"Over half the values are missing. Consider removing this column or investigating the data source.", "severity": "high"})
+                elif pct > 20:
+                    suggestions.append({"column": str(col), "issue": f"{pct}% empty ({null_count} cells)", "suggestion": f"Significant missing data. Consider filling blanks or flagging these rows for review.", "severity": "medium"})
+                elif null_count > 0:
+                    suggestions.append({"column": str(col), "issue": f"{null_count} empty cells", "suggestion": f"Small number of missing values. For numeric columns, fill with the average. For text columns, fill with 'Unknown'.", "severity": "low"})
+
+            # Numeric stored as text
+            if str(series.dtype) == 'object':
+                sample = series.dropna().head(20)
+                numeric_count = sum(1 for v in sample if str(v).replace('.','').replace('-','').replace(',','').strip().isdigit())
+                if len(sample) > 0 and numeric_count > len(sample) * 0.7:
+                    suggestions.append({"column": str(col), "issue": "Numbers stored as text", "suggestion": "This column contains numbers but is stored as text. Converting to numeric format will enable calculations and charts.", "severity": "medium"})
+
+        except Exception:
+            continue
+
+    if not suggestions:
+        suggestions.append({"column": "All columns", "issue": "No issues found", "suggestion": "Your data looks clean! No major quality issues detected.", "severity": "low"})
+
+    return {"suggestions": suggestions[:15]}
+
+# Store second file for comparison
+compare_data = {}
+
+@app.post("/api/compare")
+async def compare_files(file: UploadFile = File(...)):
+    global compare_data
+    filename = file.filename
+    if not any(filename.lower().endswith(ext) for ext in SUPPORTED_FORMATS):
+        raise HTTPException(status_code=400, detail=f"Unsupported file type.")
+    contents = await file.read()
+    try:
+        df2 = parse_file(contents, filename)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {str(e)}")
+    if df2.empty:
+        raise HTTPException(status_code=400, detail="File is empty")
+    df2 = clean_df(df2)
+    df2 = detect_dates(df2)
+    stats2 = get_stats(df2)
+    compare_data["df"] = df2
+    compare_data["stats"] = stats2
+    compare_data["filename"] = filename
+
+    # Compare with current file
+    if "df" not in current_data:
+        raise HTTPException(status_code=400, detail="Please upload a primary file first.")
+
+    df1 = current_data["df"]
+    stats1 = current_data["stats"]
+
+    # Find common columns
+    common_cols = list(set(df1.columns) & set(df2.columns))
+    num_common = [c for c in common_cols if pd.api.types.is_numeric_dtype(df1[c]) and pd.api.types.is_numeric_dtype(df2[c])]
+
+    comparison = {
+        "file1": {"name": current_data["filename"], "rows": int(df1.shape[0]), "cols": int(df1.shape[1])},
+        "file2": {"name": filename, "rows": int(df2.shape[0]), "cols": int(df2.shape[1])},
+        "common_columns": common_cols,
+        "numeric_comparison": {}
+    }
+
+    for col in num_common[:8]:
+        comparison["numeric_comparison"][col] = {
+            "file1_mean": round(float(df1[col].mean()), 2) if not df1[col].dropna().empty else None,
+            "file2_mean": round(float(df2[col].mean()), 2) if not df2[col].dropna().empty else None,
+            "file1_max": round(float(df1[col].max()), 2) if not df1[col].dropna().empty else None,
+            "file2_max": round(float(df2[col].max()), 2) if not df2[col].dropna().empty else None,
+        }
+
+    # AI comparison
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    ai_comparison = ""
+    if api_key:
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            msg = client.messages.create(
+                model="claude-sonnet-4-5", max_tokens=600,
+                messages=[{"role":"user","content":f"""Compare these two datasets and provide clear insights.
+
+File 1: {current_data['filename']} — {df1.shape[0]} rows, {df1.shape[1]} columns
+Columns: {', '.join(df1.columns.tolist()[:10])}
+
+File 2: {filename} — {df2.shape[0]} rows, {df2.shape[1]} columns  
+Columns: {', '.join(df2.columns.tolist()[:10])}
+
+Common columns: {', '.join(common_cols[:8])}
+Numeric comparison: {json.dumps(comparison['numeric_comparison'], default=str)}
+
+Provide:
+1. Key similarities between the datasets
+2. Key differences
+3. Which dataset has better data quality
+4. Recommendation on how to use both together
+
+Keep it concise and professional."""}]
+            )
+            ai_comparison = msg.content[0].text
+        except Exception as e:
+            ai_comparison = f"AI comparison unavailable: {str(e)}"
+
+    comparison["ai_comparison"] = ai_comparison
+    return comparison
+
+@app.post("/api/chart")
+async def generate_chart(request: QueryRequest):
+    if "df" not in current_data:
+        raise HTTPException(status_code=400, detail="No data uploaded yet.")
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="ANTHROPIC_API_KEY not configured")
+    df = current_data["df"]
+    cols = df.columns.tolist()
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    cat_cols = df.select_dtypes(include=["object","category"]).columns.tolist()
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-5", max_tokens=300,
+            messages=[{"role":"user","content":f"""The user wants to create a chart. Extract the chart parameters from their request.
+
+Available columns: {cols}
+Numeric columns: {num_cols}
+Categorical columns: {cat_cols}
+
+User request: {request.question}
+
+Respond ONLY with a JSON object like this (no other text):
+{{"chart_type": "bar|line|pie|scatter|histogram", "x_col": "column_name", "y_col": "column_name_or_null", "title": "chart title"}}
+
+Pick the most appropriate columns from the available ones. If pie chart, x_col is the category, y_col is null."""}]
+        )
+        import re
+        text = msg.content[0].text.strip()
+        text = re.sub(r'```json|```', '', text).strip()
+        params = json.loads(text)
+        chart_type = params.get("chart_type", "bar")
+        x_col = params.get("x_col")
+        y_col = params.get("y_col")
+        title = params.get("title", "Custom Chart")
+
+        if x_col not in df.columns:
+            raise ValueError(f"Column '{x_col}' not found")
+
+        COLORS = ["#c8692a","#e8834a","#6366f1","#2d7a5e","#d97706","#dc2626"]
+
+        def layout(t):
+            return dict(plot_bgcolor="white",paper_bgcolor="white",
+                font=dict(family="Sora,sans-serif",size=12),
+                title=dict(text=t,font=dict(size=13)),
+                margin=dict(t=44,b=44,l=44,r=16))
+
+        if chart_type == "pie":
+            counts = df[x_col].value_counts().reset_index()
+            counts.columns = [x_col, "count"]
+            fig = px.pie(counts, names=x_col, values="count", color_discrete_sequence=COLORS)
+        elif chart_type == "histogram":
+            fig = px.histogram(df, x=x_col, color_discrete_sequence=[COLORS[0]])
+        elif chart_type == "scatter" and y_col and y_col in df.columns:
+            fig = px.scatter(df, x=x_col, y=y_col, color_discrete_sequence=[COLORS[0]])
+        elif chart_type == "line":
+            if y_col and y_col in df.columns:
+                grp = df.groupby(x_col)[y_col].mean().reset_index()
+                fig = px.line(grp, x=x_col, y=y_col, markers=True, color_discrete_sequence=[COLORS[0]])
+            else:
+                fig = px.line(df, x=x_col, color_discrete_sequence=[COLORS[0]])
+        else:
+            if y_col and y_col in df.columns:
+                grp = df.groupby(x_col)[y_col].mean().reset_index().sort_values(y_col, ascending=False)
+                fig = px.bar(grp, x=x_col, y=y_col, color_discrete_sequence=[COLORS[0]])
+            else:
+                counts = df[x_col].value_counts().reset_index()
+                counts.columns = [x_col, "count"]
+                fig = px.bar(counts, x=x_col, y="count", color_discrete_sequence=[COLORS[0]])
+
+        fig.update_layout(**layout(title))
+        return {"chart": json.loads(fig.to_json()), "title": title, "type": chart_type}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/query")
+async def query_data(request: QueryRequest):
+    global current_data
+    if "df" not in current_data:
+        raise HTTPException(status_code=400, detail="No data uploaded yet.")
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="ANTHROPIC_API_KEY not configured")
+    df, stats = current_data["df"], current_data["stats"]
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        ctx = f"Dataset: {df.shape[0]} rows, {df.shape[1]} columns\nColumns: {', '.join(df.columns.tolist())}\nStats: {json.dumps(stats, indent=2, default=str)[:2000]}\nSample:\n{df.head(10).to_string()}"
+        msg = client.messages.create(model="claude-sonnet-4-5", max_tokens=500,
+            messages=[{"role":"user","content":f"You are a data analyst. Answer this question about the dataset.\n\n{ctx}\n\nQuestion: {request.question}\n\nDirect answer, calculate if needed, under 150 words."}])
+        return {"answer": msg.content[0].text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/sheets")
+async def get_sheets(filename: str = ""):
+    if "df" in current_data:
+        return {"sheets": current_data.get("sheets", []), "current": current_data.get("filename", "")}
+    return {"sheets": [], "current": ""}
+
+@app.post("/api/select-sheet")
+async def select_sheet(request: QueryRequest):
+    global current_data
+    if "all_sheets" not in current_data:
+        raise HTTPException(status_code=400, detail="No Excel file loaded")
+    sheet_name = request.question
+    if sheet_name not in current_data["all_sheets"]:
+        raise HTTPException(status_code=400, detail=f"Sheet '{sheet_name}' not found")
+    df = current_data["all_sheets"][sheet_name]
+    df = clean_df(df)
+    df = detect_dates(df)
+    stats = get_stats(df)
+    charts = make_charts(df)
+    insights = get_insights(df, stats)
+    current_data["df"] = df
+    current_data["stats"] = stats
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    date_cols = [c for c in df.columns if pd.api.types.is_datetime64_any_dtype(df[c])]
+    summary = {"rows":int(df.shape[0]),"columns":int(df.shape[1]),"column_names":df.columns.tolist(),
+        "numeric_columns":num_cols,"categorical_columns":df.select_dtypes(include=["object"]).columns.tolist(),
+        "date_columns":date_cols,"missing_values":int(df.isnull().sum().sum()),"duplicate_rows":int(df.duplicated().sum())}
+    def clean(obj):
+        if isinstance(obj, dict): return {k: clean(v) for k, v in obj.items()}
+        elif isinstance(obj, list): return [clean(i) for i in obj]
+        elif isinstance(obj, float) and (obj != obj or obj == float("inf") or obj == float("-inf")): return None
+        return obj
+    return clean({"filename":current_data["filename"],"sheet":sheet_name,"summary":summary,"stats":stats,"charts":charts,"insights":insights,"preview":to_json_safe(df.head(10))})
+
+@app.post("/api/image")
+async def analyse_image(file: UploadFile = File(...)):
+    import base64
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="ANTHROPIC_API_KEY not configured")
+    contents = await file.read()
+    ext = file.filename.split(".")[-1].lower()
+    # Convert HEIC/HEIF to JPEG
+    if ext in ["heic", "heif"]:
+        from pillow_heif import register_heif_opener
+        from PIL import Image
+        register_heif_opener()
+        img = Image.open(io.BytesIO(contents))
+        buf = io.BytesIO()
+        img.convert("RGB").save(buf, format="JPEG")
+        contents = buf.getvalue()
+        ext = "jpg"
+    media_map = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png","webp":"image/webp","gif":"image/gif"}
+    media_type = media_map.get(ext, "image/jpeg")
+    b64 = base64.standard_b64encode(contents).decode("utf-8")
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-5", max_tokens=2000,
+            messages=[{"role":"user","content":[
+                {"type":"image","source":{"type":"base64","media_type":media_type,"data":b64}},
+                {"type":"text","text":"You are a data analyst and maths expert. Analyse this image. If it contains maths: solve step by step. If it contains data tables or charts: extract and summarise. If it contains financial figures: interpret them. If handwritten: transcribe and interpret. Provide: 1) What the image contains 2) Key findings 3) Your interpretation 4) Recommendations. Be clear and professional."}
+            ]}]
+        )
+        return {"type":"image","filename":file.filename,"analysis":msg.content[0].text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "message": "Sagini AI Analytics is running"}
+
+@app.get("/")
+async def root():
+    return FileResponse("/Users/enockabel/Documents/ai-analytics-dashboard/frontend/index.html")
+
+app.mount("/static", StaticFiles(directory="/Users/enockabel/Documents/ai-analytics-dashboard/frontend"), name="static")

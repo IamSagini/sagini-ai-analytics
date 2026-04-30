@@ -1,0 +1,2470 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sagini AI Analytics</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 38'><rect width='38' height='38' rx='10' fill='%230d1f4e'/><text x='19' y='27' font-family='Georgia,serif' font-size='24' font-weight='700' fill='%23b8962e' text-anchor='middle'>S</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@1,600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --surface: #ffffff;
+      --surface2: #eef1f7;
+      --border: #dde2ee;
+      --text: #0d1526;
+      --text2: #4a5568;
+      --text3: #8896b0;
+      --accent: #b8962e;
+      --accent2: #d4af47;
+      --accent-soft: #fdf8ec;
+      --accent-border: #eddfa0;
+      --navy: #0d1f4e;
+      --navy2: #162660;
+      --green: #1a7a52;
+      --green-soft: #e6f4ee;
+      --shadow: 0 1px 4px rgba(13,21,38,0.08), 0 4px 16px rgba(13,21,38,0.04);
+      --shadow-lg: 0 8px 32px rgba(13,21,38,0.12);
+      --sidebar: 300px;
+    }
+    [data-theme="dark"] {
+      --bg: #080d1a;
+      --surface: #0f1829;
+      --surface2: #162035;
+      --border: #1e2d4a;
+      --text: #e8edf5;
+      --text2: #8896b0;
+      --text3: #4a5870;
+      --accent: #d4af47;
+      --accent2: #e8c85a;
+      --accent-soft: #1a1608;
+      --accent-border: #3a2e0a;
+      --navy: #1a2d5a;
+      --navy2: #243870;
+      --green: #2aad74;
+      --green-soft: #071a12;
+      --shadow: 0 1px 4px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    * { font-family: 'Sora', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    body { background: var(--bg); color: var(--text); height: 100vh; transition: background 0.3s, color 0.3s; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    header { background: var(--navy); border-bottom: 1px solid rgba(184,150,46,0.2); position: sticky; top: 0; z-index: 50; flex-shrink: 0; }
+    .header-inner { max-width: 100%; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .logo-wrap { display: flex; align-items: center; gap: 10px; }
+    .s-logo { width: 34px; height: 34px; background: var(--navy2); border-radius: 9px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(184,150,46,0.3); flex-shrink: 0; }
+    .s-logo span { font-family: Georgia, serif; font-size: 20px; font-weight: 700; color: var(--accent); line-height: 1; }
+    .logo-text { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+    .logo-sub { font-size: 9px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-top: 1px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .status-dot-only { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .theme-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.6); transition: all 0.2s; }
+    .theme-btn:hover { background: rgba(255,255,255,0.15); color: white; }
+
+    /* Layout */
+    .app-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+    /* Sidebar */
+    .sidebar { width: var(--sidebar); min-width: var(--sidebar); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; height: 100%; }
+    .sidebar-inner { padding: 24px 20px; display: flex; flex-direction: column; gap: 24px; height: 100%; }
+    .sidebar-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text3); margin-bottom: 12px; }
+
+    /* Upload zone */
+    .upload-zone { border: 1.5px dashed var(--border); border-radius: 14px; padding: 28px 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg); }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+    .upload-icon { width: 48px; height: 48px; background: var(--navy); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+    .upload-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .upload-sub { font-size: 11px; color: var(--text3); line-height: 1.6; }
+    .formats-wrap { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 14px; }
+    .fmt { font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 3px; background: var(--navy); color: var(--accent); letter-spacing: 0.8px; }
+    [data-theme="dark"] .fmt { background: var(--surface2); }
+    .sample-btn { font-size: 11px; color: var(--accent); font-weight: 600; background: none; border: none; cursor: pointer; font-family: 'Sora', sans-serif; margin-top: 10px; display: block; width: 100%; text-align: center; }
+    .sample-btn:hover { text-decoration: underline; }
+
+    /* File info in sidebar */
+    .file-info { background: var(--green-soft); border: 1px solid rgba(26,122,82,0.2); border-radius: 10px; padding: 12px 14px; }
+    .file-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-meta-small { font-size: 10px; color: var(--text3); }
+    .new-file-btn { width: 100%; padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Sora', sans-serif; transition: all 0.2s; margin-top: 8px; }
+    .new-file-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+    /* Stat mini cards in sidebar */
+    .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mini-stat { background: var(--surface2); border-radius: 8px; padding: 10px 12px; border: 1px solid var(--border); }
+    .mini-stat-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 4px; }
+    .mini-stat-value { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+
+    /* Q&A in sidebar */
+    .qa-input { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 12px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.2s; font-family: 'Sora', sans-serif; resize: none; }
+    .qa-input:focus { border-color: var(--accent); }
+    .qa-input::placeholder { color: var(--text3); }
+    .ask-btn { width: 100%; margin-top: 8px; padding: 10px; background: var(--navy); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Sora', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; }
+    .ask-btn:hover { background: var(--navy2); }
+    .chips-wrap { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+    .chat-item { background: var(--surface2); border-radius: 8px; padding: 10px 12px; border: 1px solid var(--border); }
+    .suggestion-item { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-radius:10px; border:1px solid var(--border); background:var(--surface); }
+    .sug-dot-high { width:8px;height:8px;border-radius:50%;background:#dc2626;flex-shrink:0;margin-top:4px; }
+    .sug-dot-medium { width:8px;height:8px;border-radius:50%;background:#d97706;flex-shrink:0;margin-top:4px; }
+    .sug-dot-low { width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:4px; }
+    .sug-col { font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px; }
+    .sug-issue { font-size:10px;color:var(--accent);margin-bottom:4px;font-weight:600; }
+    .sug-text { font-size:12px;color:var(--text2);line-height:1.5; }
+    .chat-q { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .chat-a { font-size: 11px; color: var(--text2); line-height: 1.5; }
+    .chip { font-size: 10px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; transition: all 0.15s; font-family: 'Sora', sans-serif; text-align: left; }
+    .chip:hover { background: var(--navy); color: var(--accent); border-color: transparent; }
+    .answer-box { margin-top: 10px; padding: 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+    .answer-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 6px; }
+    .answer-text { font-size: 12px; color: var(--text); line-height: 1.6; }
+
+    /* Main content */
+    .main-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 28px; display: flex; flex-direction: column; gap: 28px; height: 100%; }
+
+    /* Empty state */
+    .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 60px 40px; }
+    .empty-s { width: 72px; height: 72px; background: var(--navy); border-radius: 18px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+    .empty-s span { font-family: Georgia, serif; font-size: 44px; font-weight: 700; color: var(--accent); line-height: 1; }
+    .empty-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; margin-bottom: 10px; }
+    .empty-title em { font-style: italic; color: var(--navy); font-family: 'Cormorant Garamond', serif; font-size: 26px; }
+    [data-theme="dark"] .empty-title em { color: var(--accent); }
+    .empty-sub { font-size: 13px; color: var(--text3); max-width: 360px; line-height: 1.7; }
+
+    /* Loading */
+    .spinner { width: 36px; height: 36px; border: 2.5px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; box-shadow: var(--shadow); }
+    .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text3); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* Stats grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); }
+    .stat-label { font-size: 9px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+
+    /* Insight box */
+    .insight-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+    .insight-box::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to bottom, var(--navy), var(--accent)); }
+    .insight-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .insight-s { width: 28px; height: 28px; background: var(--navy); border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .insight-s span { font-family: Georgia, serif; font-size: 16px; font-weight: 700; color: var(--accent); line-height: 1; }
+    .insight-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .insight-text { font-size: 13px; color: var(--text2); line-height: 1.8; white-space: pre-line; }
+
+    /* Charts grid */
+    .charts-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
+
+    /* Column stats */
+    .col-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th { background: var(--navy); color: rgba(255,255,255,0.65); padding: 10px 14px; text-align: left; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); white-space: nowrap; }
+    td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text2); white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); color: var(--text); }
+
+    /* Footer */
+    footer { background: var(--navy); padding: 14px 28px; flex-shrink: 0; width: 100%; }
+    footer p { font-size: 10px; color: rgba(255,255,255,0.35); text-align: center; line-height: 1.6; }
+    footer .fa { color: var(--accent); }
+
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    /* Compare panel */
+    .compare-drop { border: 1.5px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg); }
+    .compare-drop:hover, .compare-drop.drag-over { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+    .compare-btn { width: 100%; padding: 10px; background: #162660; color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: Sora,sans-serif; margin-top: 8px; transition: background 0.2s; }
+    .compare-btn:hover { background: #1e3580; }
+    .cmp-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); }
+    .cmp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .cmp-badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px; letter-spacing: 1px; text-transform: uppercase; }
+    .cmp-badge-1 { background: rgba(200,105,42,0.15); color: #c8692a; }
+    .cmp-badge-2 { background: rgba(99,102,241,0.15); color: #6366f1; }
+    .cmp-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .cmp-row:last-child { border-bottom: none; }
+    .cmp-label { color: var(--text3); font-size: 11px; }
+    .cmp-val { font-weight: 600; color: var(--text); font-family: JetBrains Mono, monospace; font-size: 11px; }
+    .cmp-win { color: var(--green); }
+    .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .tag { font-size: 9px; padding: 2px 7px; border-radius: 3px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+    .tag-shared { background: rgba(26,122,82,0.1); color: var(--green); border-color: rgba(26,122,82,0.2); }
+    .tag-only1 { background: rgba(200,105,42,0.1); color: #c8692a; border-color: rgba(200,105,42,0.2); }
+    .tag-only2 { background: rgba(99,102,241,0.1); color: #6366f1; border-color: rgba(99,102,241,0.2); }
+    .num-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .num-table th { background: var(--navy); color: rgba(255,255,255,0.6); padding: 8px 12px; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+    .num-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text2); font-family: JetBrains Mono, monospace; }
+    .num-table tr:last-child td { border-bottom: none; }
+    .num-table tr:hover td { background: var(--surface2); }
+    .better { color: var(--green); font-weight: 700; }
+
+
+    /* Anomaly Detection */
+    .anomaly-item { display:flex; gap:14px; padding:14px 16px; border-radius:10px; border:1px solid var(--border); background:var(--surface); align-items:flex-start; }
+    .anomaly-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px; }
+    .anomaly-high { background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.25); }
+    .anomaly-medium { background:rgba(217,119,6,0.12); border:1px solid rgba(217,119,6,0.25); }
+    .anomaly-low { background:rgba(26,122,82,0.12); border:1px solid rgba(26,122,82,0.25); }
+    .anomaly-badge { font-size:8px; font-weight:700; padding:2px 7px; border-radius:3px; text-transform:uppercase; letter-spacing:1px; margin-left:8px; }
+    .badge-high { background:rgba(220,38,38,0.15); color:#dc2626; }
+    .badge-medium { background:rgba(217,119,6,0.15); color:#d97706; }
+    .badge-low { background:rgba(26,122,82,0.15); color:var(--green); }
+    .anomaly-type { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text3); margin-bottom:3px; }
+    .anomaly-desc { font-size:12px; color:var(--text2); line-height:1.5; }
+    .anomaly-col { font-size:11px; font-weight:600; color:var(--accent); margin-bottom:4px; }
+
+
+    .clean-action { display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); }
+    .clean-action-title { font-size:12px; font-weight:600; color:var(--text); margin-bottom:2px; }
+    .clean-action-detail { font-size:11px; color:var(--text2); line-height:1.5; }
+    .clean-btn { width:100%; padding:12px; background:linear-gradient(135deg,var(--navy),#1e3580); color:white; border:none; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:Sora,sans-serif; transition:opacity 0.2s; }
+    .clean-btn:hover { opacity:0.9; }
+    .clean-btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(4px); }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:440px; box-shadow:var(--shadow-lg); }
+    .modal-title { font-size:16px; font-weight:700; color:var(--text); margin-bottom:6px; }
+    .modal-sub { font-size:12px; color:var(--text2); margin-bottom:20px; line-height:1.6; }
+    .modal-label { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+    .modal-input { width:100%; border:1.5px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13px; background:var(--bg); color:var(--text); outline:none; font-family:Sora,sans-serif; margin-bottom:16px; }
+    .modal-input:focus { border-color:var(--accent); }
+    .modal-btn { width:100%; padding:12px; background:var(--navy); color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:Sora,sans-serif; transition:background 0.2s; }
+    .modal-btn:hover { background:var(--navy2); }
+    .share-link-box { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; margin-top:16px; display:none; }
+    .share-link-url { font-size:11px; font-family:JetBrains Mono,monospace; color:var(--accent); word-break:break-all; margin-bottom:10px; }
+    .copy-btn { padding:7px 16px; background:var(--navy); color:white; border:none; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; font-family:Sora,sans-serif; }
+
+
+    /* Profile Panel */
+    .profile-panel { position:fixed; top:60px; right:0; width:360px; height:calc(100vh - 60px); background:var(--surface); border-left:1px solid var(--border); z-index:90; overflow-y:auto; transform:translateX(100%); transition:transform 0.3s ease; box-shadow:-4px 0 20px rgba(0,0,0,0.3); }
+    .profile-panel.open { transform:translateX(0); }
+    .profile-panel-inner { padding:24px; }
+    .profile-section { margin-bottom:24px; }
+    .profile-section-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--text3); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .profile-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+    .profile-stat { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .profile-stat:last-child { border-bottom:none; }
+
+
+    /* ── MOBILE RESPONSIVE ──────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      /* Hide sidebar, show as bottom sheet */
+      .sidebar {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        width: 100% !important; min-width: 100% !important;
+        height: auto; max-height: 60vh;
+        border-right: none; border-top: 1px solid var(--border);
+        z-index: 60; transform: translateY(100%);
+        transition: transform 0.3s ease;
+        border-radius: 16px 16px 0 0;
+      }
+      .sidebar.mobile-open { transform: translateY(0); }
+      .sidebar-inner { padding: 16px; }
+
+      /* Main content full width */
+      .app-body { flex-direction: column; }
+      .main-content { padding: 16px; width: 100%; }
+
+      /* Stats grid 2 cols on mobile */
+      .stats-grid { grid-template-columns: repeat(2,1fr) !important; gap: 8px; }
+      .col-grid { grid-template-columns: repeat(2,1fr) !important; gap: 8px; }
+      .charts-grid { grid-template-columns: 1fr !important; }
+      .cmp-grid { grid-template-columns: 1fr !important; }
+
+      /* Header */
+      .header-inner { padding: 0 16px; }
+      .logo-sub { display: none; }
+      #user-name { display: none; }
+
+      /* Profile panel full screen on mobile */
+      .profile-panel {
+        width: 100% !important;
+        top: 60px; left: 0; right: 0;
+      }
+
+      /* Mobile nav toggle button */
+      .mobile-menu-btn {
+        display: flex !important;
+        width: 34px; height: 34px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.08);
+        align-items: center; justify-content: center;
+        cursor: pointer; color: rgba(255,255,255,0.6);
+      }
+
+      /* Floating upload button on mobile */
+      .mobile-upload-fab {
+        display: flex !important;
+        position: fixed; bottom: 24px; right: 24px;
+        width: 56px; height: 56px; border-radius: 50%;
+        background: var(--accent); color: #0d1526;
+        align-items: center; justify-content: center;
+        box-shadow: 0 4px 20px rgba(200,150,46,0.4);
+        cursor: pointer; z-index: 55; border: none;
+        font-size: 24px; font-weight: 700;
+      }
+
+      /* Hide desktop sidebar toggle */
+      .sidebar-inner > div:first-child button { font-size: 10px; }
+
+      /* Table scroll */
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 500px; }
+
+      /* Admin overlay full width */
+      #admin-chart-overlay {
+        left: 0 !important;
+        right: 0 !important;
+        padding: 16px !important;
+      }
+
+      /* Insight text smaller */
+      .insight-text { font-size: 12px; }
+
+      /* Empty state */
+      .empty-state { padding: 40px 20px; }
+      .empty-title { font-size: 18px; }
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr !important; }
+      .stat-value { font-size: 20px !important; }
+      .col-grid { grid-template-columns: 1fr !important; }
+      .mini-stats { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* Hide mobile elements on desktop */
+    .mobile-menu-btn { display: none; }
+    .mobile-upload-fab { display: none; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <div class="logo-wrap">
+        <div class="s-logo"><span>S</span></div>
+        <div>
+          <div class="logo-text">Sagini AI Analytics</div>
+          <div class="logo-sub">Data Intelligence Platform</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-dot-only"></div>
+        <div id="user-menu" style="display:none;align-items:center;gap:8px;position:relative">
+          <button onclick="toggleProfilePanel()" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:5px 12px;cursor:pointer;font-family:Sora,sans-serif">
+            <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0d1526;flex-shrink:0" id="user-avatar"></div>
+            <span id="user-name" style="font-size:11px;color:rgba(255,255,255,0.8);font-weight:600"></span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+        <a id="signin-btn" href="/login" style="display:none;padding:5px 12px;background:var(--accent);color:#0d1526;border-radius:6px;font-size:10px;font-weight:700;text-decoration:none">Sign In</a>
+        <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <button class="theme-btn" onclick="toggleTheme()">
+          <svg id="icon-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg id="icon-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Body -->
+  <div class="app-body">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-inner">
+
+        <!-- Upload -->
+        <div>
+          <button onclick="goHome()" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:0;margin-bottom:16px;color:var(--text2);font-family:Sora,sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;" title="Go to home">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Home
+          </button>
+          <div id="drop-zone" class="upload-zone" onclick="document.getElementById('file-input').click()">
+            <div class="upload-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <p class="upload-title">Drop file or click to browse</p>
+            <p class="upload-sub">CSV, Excel, PDF, Word, JSON, XML, Images and more</p>
+            <div class="formats-wrap">
+              <span class="fmt">CSV</span><span class="fmt">XLSX</span><span class="fmt">PDF</span>
+              <span class="fmt">JSON</span><span class="fmt">TSV</span><span class="fmt">XML</span>
+            </div>
+            <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.pdf,.json,.tsv,.xml,.parquet,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif,.docx,.doc,image/*" style="display:none" onchange="handleFileUpload(this.files[0])">
+          </div>
+          <button class="sample-btn" onclick="loadSampleData()">No file? Load sample dataset →</button>
+        </div>
+
+        <!-- File info (hidden until upload) -->
+        <div id="file-info-box" style="display:none">
+          <div class="sidebar-title">Current File</div>
+          <div class="file-info">
+            <div id="sidebar-filename" class="file-name"></div>
+            <div id="sidebar-meta" class="file-meta-small"></div>
+          </div>
+          <button class="new-file-btn" onclick="document.getElementById('file-input').value='';document.getElementById('file-input').click()">+ Upload new file</button>
+        </div>
+
+        <!-- Compare Section in Sidebar -->
+        <div id="compare-sidebar-box" style="display:none">
+          <div class="sidebar-title">Compare Files</div>
+          <div id="compare-drop-zone" class="compare-drop" onclick="document.getElementById('compare-file-input').click()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" style="margin:0 auto 8px;display:block"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+            <p style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px">Upload second file</p>
+            <p style="font-size:10px;color:var(--text3)">Compare side by side</p>
+            <input type="file" id="compare-file-input" accept=".csv,.xlsx,.xls,.pdf,.json,.tsv,.xml,.parquet,.docx,.doc" style="display:none" onchange="handleCompareUpload(this.files[0])">
+          </div>
+          <div id="compare-file-name" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(99,102,241,0.08);border-radius:8px;border:1px solid rgba(99,102,241,0.2)">
+            <p style="font-size:11px;font-weight:600;color:#6366f1" id="compare-fname-text"></p>
+            <p style="font-size:10px;color:var(--text3)">Ready to compare</p>
+          </div>
+          <div id="compare-loading-inline" style="display:none;margin-top:8px;font-size:11px;color:var(--text3);align-items:center">
+            <div class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px"></div> Comparing...
+          </div>
+        </div>
+
+        <!-- Mini stats (hidden until upload) -->
+        <div id="mini-stats-box" style="display:none">
+          <div class="sidebar-title">Quick Stats</div>
+          <div class="mini-stats" id="mini-stats"></div>
+        </div>
+
+        <!-- Ask (hidden until upload) -->
+        <div id="ask-box" style="display:none">
+          <div class="sidebar-title">Ask Your Data</div>
+          <textarea id="question-input" class="qa-input" rows="3" placeholder="e.g. Who has the highest balance?" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askQuestion()}"></textarea>
+          <button class="ask-btn" onclick="askQuestion()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Ask Sagini AI
+          </button>
+          <div id="answer-loading" style="display:none;margin-top:10px;align-items:center;gap:6px;color:var(--text3);font-size:11px">
+            <div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Thinking...
+          </div>
+          <div id="answer-box" style="display:none" class="answer-box">
+            <div class="answer-label">Answer</div>
+            <div id="answer-text" class="answer-text"></div>
+          </div>
+          <div id="suggested-questions" class="chips-wrap"></div>
+        </div>
+
+        <!-- Sheet Selector -->
+        <div id="sheet-selector-box" style="display:none">
+          <div class="sidebar-title">Sheets</div>
+          <div id="sheet-buttons" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+
+
+        <!-- Chat History -->
+        <div id="chat-history-box" style="display:none">
+          <div class="sidebar-title">Chat History</div>
+          <div id="chat-history" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
+          <button onclick="clearHistory()" style="margin-top:8px;font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:Sora,sans-serif;text-align:left;padding:0">Clear history</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+      <!-- Empty state -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-s"><span>S</span></div>
+        <h2 class="empty-title">Sagini AI Analytics —<br><em>your data, decoded</em></h2>
+        <p class="empty-sub">Upload any data file on the left. Sagini AI Analytics will automatically read, analyse and generate clear insights, charts and statistics in seconds.</p>
+      </div>
+
+      <!-- Loading -->
+      <div id="loading" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:20px;text-align:center;padding:40px">
+        <div class="empty-s"><span>S</span></div>
+        <p style="font-size:16px;font-weight:600;color:var(--text)" id="loading-msg">Reading your file...</p>
+        <div style="width:280px;background:var(--border);border-radius:99px;height:6px;overflow:hidden">
+          <div id="progress-bar" style="height:100%;background:var(--accent);border-radius:99px;width:0%;transition:width 0.4s ease"></div>
+        </div>
+        <p style="font-size:12px;color:var(--text3)" id="loading-pct">0%</p>
+      </div>
+
+      <!-- Results -->
+      <div id="results" style="display:none" class="fade-in">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px">
+          <button onclick="downloadCSV()" class="btn-ghost" style="font-size:11px">Download CSV</button>
+          <button onclick="downloadReport()" class="btn-ghost" style="font-size:11px">Download Report</button>
+          <button onclick="openShareModal()" style="font-size:11px;padding:7px 14px;background:var(--navy);color:white;border:none;border-radius:8px;cursor:pointer;font-family:Sora,sans-serif;font-weight:600">Share Report</button>
+        </div>
+
+        <!-- Overview -->
+        <div>
+          <div class="section-title">Overview</div>
+          <div class="stats-grid" id="stats-grid"></div>
+        </div>
+
+        <!-- AI Insights -->
+        <div>
+          <div class="section-title">Sagini AI Analysis</div>
+          <div class="insight-box">
+            <div class="insight-header">
+              <div class="insight-s"><span>S</span></div>
+              <span class="insight-title">Sagini AI Analysis</span>
+            </div>
+            <div id="ai-insights" class="insight-text"></div>
+          </div>
+        </div>
+
+
+        <!-- Anomaly Detection -->
+        <div id="anomaly-section" style="display:none">
+          <div class="section-title">
+            Anomaly Detection
+            <span id="anomaly-count-badge" style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:99px;background:rgba(220,38,38,0.12);color:#dc2626;text-transform:none;letter-spacing:0"></span>
+          </div>
+          <div class="insight-box" style="margin-bottom:14px;display:none" id="anomaly-ai-box">
+            <div class="insight-header">
+              <div class="insight-s"><span>S</span></div>
+              <span class="insight-title">Sagini AI — Anomaly Summary</span>
+            </div>
+            <div id="anomaly-ai-text" class="insight-text"></div>
+          </div>
+          <div id="anomaly-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          <div id="anomaly-chart" style="margin-top:14px"></div>
+        </div>
+
+        <!-- Charts -->
+        <div>
+          <div class="section-title">Visualisations</div>
+          <div class="charts-grid" id="charts-grid"></div>
+        </div>
+
+        <!-- Column Summary -->
+        <div>
+          <div class="section-title">Column Summary</div>
+          <div class="col-grid" id="column-stats"></div>
+        </div>
+
+        <!-- AI Answer Display -->
+        <div id="answer-display" style="display:none">
+          <div class="section-title">Sagini AI Response</div>
+          <div id="answer-display-content" style="display:flex;flex-direction:column;gap:12px"></div>
+        </div>
+
+
+        <!-- Comparison Results -->
+        <div id="compare-results" style="display:none" class="fade-in">
+          <div class="section-title">File Comparison</div>
+
+          <!-- File header cards -->
+          <div class="cmp-grid" style="margin-bottom:14px">
+            <div class="cmp-card">
+              <div class="cmp-header">
+                <span class="cmp-badge cmp-badge-1">File 1</span>
+                <span style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="cmp-name1"></span>
+              </div>
+              <div id="cmp-stats1"></div>
+            </div>
+            <div class="cmp-card">
+              <div class="cmp-header">
+                <span class="cmp-badge cmp-badge-2">File 2</span>
+                <span style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="cmp-name2"></span>
+              </div>
+              <div id="cmp-stats2"></div>
+            </div>
+          </div>
+
+          <!-- Column overlap -->
+          <div class="cmp-card" style="margin-bottom:14px">
+            <p style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Column Overlap</p>
+            <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap">
+              <div><span style="font-size:10px;color:var(--text3)">Shared</span> <span id="cmp-shared-count" style="font-size:18px;font-weight:700;color:var(--green);margin-left:6px"></span></div>
+              <div><span style="font-size:10px;color:var(--text3)">Only in File 1</span> <span id="cmp-only1-count" style="font-size:18px;font-weight:700;color:#c8692a;margin-left:6px"></span></div>
+              <div><span style="font-size:10px;color:var(--text3)">Only in File 2</span> <span id="cmp-only2-count" style="font-size:18px;font-weight:700;color:#6366f1;margin-left:6px"></span></div>
+            </div>
+            <div id="cmp-col-tags"></div>
+          </div>
+
+          <!-- Summary metric cards -->
+          <div id="cmp-summary-cards" style="margin-bottom:14px;display:none">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:12px">Key Metrics at a Glance</p>
+            <div id="cmp-metric-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
+          </div>
+
+          <!-- Numeric comparison table -->
+          <div id="cmp-numeric-wrap" class="cmp-card" style="margin-bottom:14px;display:none">
+            <p style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Numeric Column Deep Comparison</p>
+            <div style="overflow-x:auto">
+              <table class="num-table" id="cmp-num-table">
+                <thead>
+                  <tr>
+                    <th>Column</th>
+                    <th>File 1 Total</th>
+                    <th>File 2 Total</th>
+                    <th>Difference</th>
+                    <th>% Change</th>
+                    <th>File 1 Avg</th>
+                    <th>File 2 Avg</th>
+                    <th>File 1 Max</th>
+                    <th>File 2 Max</th>
+                  </tr>
+                </thead>
+                <tbody id="cmp-num-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Comparison Charts -->
+          <div id="cmp-charts-grid" class="charts-grid" style="margin-bottom:14px"></div>
+
+          <!-- AI Comparison -->
+          <div class="insight-box" style="margin-bottom:14px">
+            <div class="insight-header">
+              <div class="insight-s"><span>S</span></div>
+              <span class="insight-title">Sagini AI — Comparison Analysis</span>
+            </div>
+            <div id="cmp-ai-text" class="insight-text"></div>
+          </div>
+
+          <!-- Side-by-side preview -->
+          <div class="cmp-grid">
+            <div>
+              <div class="section-title" style="margin-bottom:10px">File 1 Preview <span class="cmp-badge cmp-badge-1" style="margin-left:6px">File 1</span></div>
+              <div class="table-wrap"><table id="cmp-preview1"></table></div>
+            </div>
+            <div>
+              <div class="section-title" style="margin-bottom:10px">File 2 Preview <span class="cmp-badge cmp-badge-2" style="margin-left:6px">File 2</span></div>
+              <div class="table-wrap"><table id="cmp-preview2"></table></div>
+            </div>
+          </div>
+
+          <!-- Clear comparison -->
+          <div style="margin-top:14px;text-align:right">
+            <button onclick="clearComparison()" style="font-size:11px;color:var(--text3);background:none;border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:Sora,sans-serif">✕ Clear Comparison</button>
+          </div>
+        </div>
+
+        <!-- Data Cleaning -->
+        <div id="cleaning-section">
+          <div class="section-title">Data Quality</div>
+          <div id="cleaning-suggestions" style="display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+
+        <!-- Auto Clean -->
+        <div id="auto-clean-section" style="display:none">
+          <div class="section-title">Auto-Clean Data</div>
+          <div class="card" style="margin-bottom:14px">
+            <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">One click to fix your data — removes duplicates, fills empty cells, fixes number formats and cleans column names.</p>
+            <button class="clean-btn" id="run-clean-btn" onclick="runAutoClean()">Auto-Clean My Data</button>
+          </div>
+          <div id="clean-results" style="display:none">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px" id="clean-stats"></div>
+            <div id="clean-actions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+            <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+              <button onclick="downloadCleanedCSV()" style="padding:10px 20px;background:var(--green);color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sora,sans-serif">Download Cleaned CSV</button>
+              <button onclick="toggleCleanPreview()" id="preview-clean-btn" style="padding:10px 20px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sora,sans-serif">Preview Cleaned Data</button>
+            </div>
+            <div id="clean-preview-wrap" style="display:none">
+              <div class="section-title" style="margin-bottom:10px">Cleaned Data Preview</div>
+              <div class="table-wrap"><table id="clean-preview-table"></table></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Preview -->
+        <div>
+          <div class="section-title">Data Preview <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(first 10 rows)</span></div>
+          <div class="table-wrap">
+            <table id="preview-table"></table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p> <span class="fa">Notice:</span> Sagini AI Data Intelligence provides automated analysis for informational purposes only. Results may not be 100% accurate. Always verify critical data independently. &nbsp;·&nbsp; © 2026 <span class="fa">Sagini AI Analytics</span></p>
+  </footer>
+
+  <script>
+    const API = 'http://localhost:8000';
+
+    function renderMarkdown(text) {
+        if (!text) return '';
+        return text
+            .replace(/#{1,3} (.+)/g, '<strong style="font-size:14px;color:var(--text);display:block;margin:12px 0 4px">$1</strong>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/\n\n/g, '<br><br>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function authFetch(url, options = {}) {
+        return fetch(url, { ...options, credentials: 'include' });
+    }
+    let cachedData = null;
+
+    // Store the last uploaded file for re-upload
+    let lastUploadedFile = null;
+
+    // On page load, restore cached data and chat history
+    window.addEventListener('load', async () => {
+
+      // Check auth from sessionStorage first, then API
+      try {
+        const cached = JSON.parse(sessionStorage.getItem('sagini_user') || 'null');
+        let userData = null;
+        try {
+          const res = await authFetch(`${API}/api/auth/me`);
+          if (res.ok) userData = await res.json();
+        } catch(e) {}
+        if (!userData && cached) userData = cached;
+        if (userData) {
+          currentUser = userData;
+          const initial = currentUser.name.charAt(0).toUpperCase();
+          document.getElementById('user-name').textContent = currentUser.name;
+          document.getElementById('user-avatar').textContent = initial;
+          document.getElementById('user-menu').style.display = 'flex';
+          document.getElementById('signin-btn').style.display = 'none';
+          // Fill profile panel
+          document.getElementById('panel-avatar').textContent = initial;
+          document.getElementById('panel-name').textContent = currentUser.name;
+          document.getElementById('panel-email').textContent = currentUser.email; // full email for owner
+          document.getElementById('panel-uploads').textContent = currentUser.upload_count;
+          document.getElementById('panel-since').textContent = currentUser.created_at ? currentUser.created_at.slice(0,10) : '—';
+          document.getElementById('panel-joined').textContent = 'Member since ' + (currentUser.created_at ? currentUser.created_at.slice(0,10) : '—');
+          // Load admin stats inline
+          // Only load admin stats if confirmed admin
+          const isAdmin = currentUser.is_admin === true || currentUser.is_admin === 1;
+          if (!isAdmin) {
+              const adminSec = document.getElementById('admin-section');
+              if (adminSec) adminSec.style.display = 'none';
+          }
+          if (isAdmin) {
+            setTimeout(async () => {
+                const sess = JSON.parse(sessionStorage.getItem('sagini_user') || '{}');
+                const tok = sess.token || '';
+                const res = await fetch(`${API}/api/admin/stats`, {
+                    credentials: 'include',
+                    headers: tok ? {'Authorization': 'Bearer ' + tok} : {}
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                window._adminData = data;
+                document.getElementById('admin-total').textContent = data.total_users;
+                document.getElementById('admin-today').textContent = data.new_today;
+                document.getElementById('admin-active').textContent = data.active_7d;
+                document.getElementById('admin-uploads-stat').textContent = data.total_uploads;
+                function maskEmail(e){const[u,d]=e.split('@');return u[0]+'***@'+d;}
+                function maskName(n){const p=n.split(' ');return p[0]+(p[1]?' '+p[1][0]+'.':'');}
+                document.getElementById('admin-users').innerHTML = data.recent_users.slice(0,4).map(u=>`
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+                        <div style="width:28px;height:28px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent)">${u.name.charAt(0).toUpperCase()}</div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:11px;font-weight:600;color:var(--text)">${maskName(u.name)}</div>
+                            <div style="font-size:10px;color:var(--text3)">${maskEmail(u.email)}</div>
+                        </div>
+                        <div style="font-size:10px;color:var(--accent)">${u.upload_count} uploads</div>
+                    </div>`).join('');
+            }, 500);
+          }
+        } else {
+          document.getElementById('signin-btn').style.display = 'flex';
+        }
+      } catch(e) {
+        document.getElementById('signin-btn').style.display = 'flex';
+      }
+
+      const saved = sessionStorage.getItem('sagini_data');
+      if (saved) {
+        try {
+          cachedData = JSON.parse(saved);
+          renderResults(cachedData);
+          showCompareSidebar();
+          // Check if backend still has the data
+          try {
+            const check = await fetch(`${API}/api/cleaning-suggestions`);
+            if (!check.ok) {
+              // Backend lost data — show subtle warning
+              showReuploadBanner();
+            }
+          } catch(e) {}
+        } catch(e) {
+          sessionStorage.removeItem('sagini_data');
+        }
+      }
+      if (chatHistory.length > 0) {
+        renderChatHistory();
+      }
+    });
+
+    function showReuploadBanner() {
+      const existing = document.getElementById('reupload-banner');
+      if (existing) return;
+      const banner = document.createElement('div');
+      banner.id = 'reupload-banner';
+      banner.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#0d1f4e;color:white;padding:10px 20px;border-radius:8px;font-size:12px;z-index:100;display:flex;align-items:center;gap:12px;border:1px solid rgba(184,150,46,0.3);box-shadow:0 4px 20px rgba(0,0,0,0.3)';
+      banner.innerHTML = `
+        <span> Session restarted — re-upload your file to enable AI features</span>
+        <button onclick="document.getElementById('file-input').click();document.getElementById('reupload-banner').remove()" 
+          style="background:var(--accent);color:white;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;font-family:Sora,sans-serif">
+          Re-upload
+        </button>
+        <button onclick="document.getElementById('reupload-banner').remove()" 
+          style="background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:16px">×</button>
+      `;
+      document.body.appendChild(banner);
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      const newTheme = isDark ? 'light' : 'dark';
+      html.setAttribute('data-theme', newTheme);
+      localStorage.setItem('sagini_theme', newTheme);
+      document.getElementById('icon-light').style.display = isDark ? 'block' : 'none';
+      document.getElementById('icon-dark').style.display = isDark ? 'none' : 'block';
+    }
+
+    // Apply saved theme immediately
+    (function() {
+      const saved = localStorage.getItem('sagini_theme');
+      if (saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.addEventListener('DOMContentLoaded', () => {
+          document.getElementById('icon-light').style.display = 'none';
+          document.getElementById('icon-dark').style.display = 'block';
+        });
+      }
+    })();
+
+    const dropZone = document.getElementById('drop-zone');
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFileUpload(e.dataTransfer.files[0]); });
+
+    const IMAGE_FORMATS = ['png','jpg','jpeg','webp','gif','heic','heif'];
+
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+    function setProgress(pct, msg) {
+      document.getElementById('progress-bar').style.width = pct + '%';
+      document.getElementById('loading-pct').textContent = pct + '%';
+      if (msg) document.getElementById('loading-msg').textContent = msg;
+    }
+
+    function friendlyError(msg) {
+      if (msg.includes('Could not parse')) return 'Sagini AI could not read this file. Please check the file is not corrupted and try again.';
+      if (msg.includes('empty')) return 'This file appears to be empty. Please upload a file with data.';
+      if (msg.includes('ANTHROPIC_API_KEY')) return 'AI analysis is not configured. Please contact support.';
+      if (msg.includes('No tables found')) return 'No tables found in this PDF. Please ensure your PDF contains structured table data.';
+      if (msg.includes('No readable')) return 'No readable content found in this document.';
+      return 'Something went wrong: ' + msg + '. Please try again or use a different file.';
+    }
+
+    async function handleFileUpload(file) {
+      if (!file) return;
+
+      // File size check
+      if (file.size > MAX_FILE_SIZE) {
+        alert('This file is too large. Please upload a file smaller than 50MB.');
+        return;
+      }
+
+      const ext = file.name.split('.').pop().toLowerCase().trim();
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('loading').style.display = 'flex';
+      setProgress(5, 'Reading your file...');
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        clearAdminOverlays();
+      if (IMAGE_FORMATS.includes(ext)) {
+          setProgress(20, 'Processing image...');
+          const res = await fetch(`${API}/api/image`, { method: 'POST', body: formData });
+          setProgress(80, 'Generating analysis...');
+          if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Analysis failed'); }
+          const data = await res.json();
+          setProgress(100, 'Done!');
+          setTimeout(() => renderImageResults(data, file), 300);
+        } else {
+          setProgress(15, 'Parsing your file...');
+          setTimeout(() => setProgress(35, 'Extracting data...'), 500);
+          setTimeout(() => setProgress(55, 'Generating charts...'), 1500);
+          setTimeout(() => setProgress(75, 'Running AI analysis...'), 2500);
+          const sess = JSON.parse(sessionStorage.getItem('sagini_user') || '{}');
+          const tok = sess.token || '';
+          const res = await fetch(`${API}/api/upload`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+            headers: tok ? {'Authorization': 'Bearer ' + tok} : {}
+          });
+          // Refresh upload count after upload
+          if (tok) {
+            fetch(`${API}/api/auth/me`, {credentials:'include', headers:{'Authorization':'Bearer '+tok}})
+              .then(r => r.ok ? r.json() : null)
+              .then(u => {
+                if (u) {
+                  sess.upload_count = u.upload_count;
+                  sessionStorage.setItem('sagini_user', JSON.stringify(sess));
+                  const el = document.getElementById('panel-uploads');
+                  if (el) el.textContent = u.upload_count;
+                  if (currentUser) currentUser.upload_count = u.upload_count;
+                }
+              });
+          }
+          if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Upload failed'); }
+          const data = await res.json();
+          setProgress(100, 'Analysis complete!');
+          setTimeout(() => {
+            sessionStorage.setItem('sagini_data', JSON.stringify(data));
+            renderResults(data);
+          }, 300);
+        }
+      } catch (err) {
+        alert(friendlyError(err.message));
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'flex';
+      }
+    }
+
+    function renderImageResults(data, file) {
+      window._lastData = data;
+      fetchCleaningSuggestions();
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('empty-state').style.display = 'none';
+      // Re-show hidden sections in case they were hidden by image view
+      document.getElementById('stats-grid').parentElement.style.display = 'block';
+      document.getElementById('charts-grid').parentElement.style.display = 'block';
+      document.getElementById('column-stats').parentElement.style.display = 'block';
+
+      // Update sidebar
+      document.getElementById('sidebar-filename').textContent = data.filename;
+      document.getElementById('sidebar-meta').textContent = 'Image analysis';
+      document.getElementById('file-info-box').style.display = 'block';
+      document.getElementById('drop-zone').style.display = 'none';
+      document.querySelector('.sample-btn').style.display = 'none';
+      document.getElementById('mini-stats-box').style.display = 'none';
+      document.getElementById('ask-box').style.display = 'none';
+
+      // Hide irrelevant sections
+      document.getElementById('stats-grid').parentElement.style.display = 'none';
+      document.getElementById('charts-grid').parentElement.style.display = 'none';
+      document.getElementById('column-stats').parentElement.style.display = 'none';
+      document.getElementById('preview-table').closest('div').style.display = 'none';
+
+      // Show image
+      const imageUrl = URL.createObjectURL(file);
+      const insightBox = document.getElementById('ai-insights').closest('.insight-box');
+      insightBox.insertAdjacentHTML('beforebegin', `
+        <div style="margin-bottom:0">
+          <div class="section-title" style="margin-bottom:16px">Uploaded Image</div>
+          <div class="card" style="padding:12px">
+            <img src="${imageUrl}" style="width:100%;max-height:500px;object-fit:contain;border-radius:8px;border:1px solid var(--border)">
+          </div>
+        </div>
+      `);
+
+      // Show analysis
+      document.getElementById('ai-insights').textContent = data.analysis;
+    }
+
+    function renderResults(data) {
+      window._lastData = data;
+      fetchCleaningSuggestions();
+      fetchAnomalies();
+      if (currentUser && (currentUser.is_admin === true || currentUser.is_admin === 1)) {
+        setTimeout(async () => {
+          const sess2 = JSON.parse(sessionStorage.getItem('sagini_user') || '{}');
+          const tok2 = sess2.token || '';
+          const res = await fetch(`${API}/api/admin/stats`, {
+            credentials: 'include',
+            headers: tok2 ? {'Authorization': 'Bearer ' + tok2} : {}
+          });
+          if (!res.ok) return;
+          const d = await res.json();
+          window._adminData = d;
+          document.getElementById('admin-total').textContent = d.total_users;
+          document.getElementById('admin-today').textContent = d.new_today;
+          document.getElementById('admin-active').textContent = d.active_7d;
+          document.getElementById('admin-uploads-stat').textContent = d.total_uploads;
+          // Update panel-uploads for current user
+          if (currentUser) {
+            const me = await fetch(`${API}/api/auth/me`, {credentials:'include', headers: tok2 ? {'Authorization':'Bearer '+tok2} : {}});
+            if (me.ok) { const u = await me.json(); document.getElementById('panel-uploads').textContent = u.upload_count; currentUser.upload_count = u.upload_count; }
+          }
+        }, 1000);
+      } else if (currentUser) {
+        // Non-admin — just update their upload count
+        setTimeout(async () => {
+          const me = await fetch(`${API}/api/auth/me`, {credentials:'include', headers: token ? {'Authorization':'Bearer '+token} : {}});
+          if (me.ok) { const u = await me.json(); document.getElementById('panel-uploads').textContent = u.upload_count; currentUser.upload_count = u.upload_count; }
+        }, 1000);
+      }
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('empty-state').style.display = 'none';
+      // Re-show hidden sections in case they were hidden by image view
+      document.getElementById('stats-grid').parentElement.style.display = 'block';
+      document.getElementById('charts-grid').parentElement.style.display = 'block';
+      document.getElementById('column-stats').parentElement.style.display = 'block';
+
+      // Sidebar file info
+      document.getElementById('sidebar-filename').textContent = data.filename;
+      document.getElementById('sidebar-meta').textContent = `${data.summary.rows.toLocaleString()} rows · ${data.summary.columns} cols`;
+      document.getElementById('file-info-box').style.display = 'block';
+      document.getElementById('drop-zone').style.display = 'none';
+      document.querySelector('.sample-btn').style.display = 'none';
+
+      // Mini stats
+      const miniStats = document.getElementById('mini-stats');
+      miniStats.innerHTML = [
+        { label: 'Rows', value: data.summary.rows.toLocaleString(), color: 'var(--accent)' },
+        { label: 'Columns', value: data.summary.columns, color: '#6366f1' },
+        { label: 'Empty', value: data.summary.missing_values.toLocaleString(), color: '#d97706' },
+        { label: 'Dupes', value: data.summary.duplicate_rows, color: '#dc2626' },
+      ].map(c => `
+        <div class="mini-stat">
+          <div class="mini-stat-label">${c.label}</div>
+          <div class="mini-stat-value" style="color:${c.color}">${c.value}</div>
+        </div>
+      `).join('');
+      document.getElementById('mini-stats-box').style.display = 'block';
+      document.getElementById('ask-box').style.display = 'block';
+      showCompareSidebar();
+      document.getElementById('auto-clean-section').style.display = 'block';
+
+      // Suggested questions
+      const cleanNum = (data.summary.numeric_columns||[]).filter(c=>!c.match(/\.\d+$/)&&!c.startsWith('col_'));
+      const cleanCat = (data.summary.categorical_columns||[]).filter(c=>!c.match(/\.\d+$/)&&!c.startsWith('col_')&&c!=='Sheet');
+      const suggestions = [];
+      if (cleanNum.length>0) { suggestions.push(`Total ${cleanNum[0]}?`); suggestions.push(`Highest ${cleanNum[0]}?`); }
+      if (cleanCat.length>0) suggestions.push(`Unique ${cleanCat[0]}s?`);
+      suggestions.push('Key findings?');
+      document.getElementById('suggested-questions').innerHTML = suggestions.slice(0,4).map(q =>
+        `<button class="chip" onclick="setQuestion('${q}')">${q}</button>`
+      ).join('');
+
+      // Stats grid
+      const statsGrid = document.getElementById('stats-grid');
+      statsGrid.innerHTML = [
+        { label: 'Total Rows', value: data.summary.rows.toLocaleString(), color: 'var(--accent)' },
+        { label: 'Columns', value: data.summary.columns, color: '#6366f1' },
+        { label: 'Empty Cells', value: data.summary.missing_values.toLocaleString(), color: '#d97706' },
+        { label: 'Duplicate Rows', value: data.summary.duplicate_rows, color: '#dc2626' },
+      ].map(c => `
+        <div class="stat-card">
+          <div class="stat-label">${c.label}</div>
+          <div class="stat-value" style="color:${c.color}">${c.value}</div>
+        </div>
+      `).join('');
+
+      // Insights
+      document.getElementById('ai-insights').innerHTML = renderMarkdown(data.insights || '');
+
+      // Charts
+      const chartsGrid = document.getElementById('charts-grid');
+      chartsGrid.innerHTML = '';
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const plotBg = isDark ? '#0f1829' : '#ffffff';
+      const plotText = isDark ? '#e8edf5' : '#0d1526';
+      const plotGrid = isDark ? '#1e2d4a' : '#dde2ee';
+      data.charts.forEach((chart, i) => {
+        const div = document.createElement('div');
+        div.className = 'chart-card';
+        div.id = `chart-${i}`;
+        chartsGrid.appendChild(div);
+        Plotly.newPlot(`chart-${i}`, chart.data.data, {
+          ...chart.data.layout,
+          margin: { t: 36, b: 40, l: 40, r: 12 },
+          height: 260,
+          paper_bgcolor: plotBg, plot_bgcolor: plotBg,
+          font: { color: plotText, family: 'Sora' },
+          xaxis: { ...chart.data.layout?.xaxis, gridcolor: plotGrid, linecolor: plotGrid },
+          yaxis: { ...chart.data.layout?.yaxis, gridcolor: plotGrid, linecolor: plotGrid },
+        }, { responsive: true, displayModeBar: false });
+      });
+
+      // Column stats
+      const skipCols = ['Sheet','col_1'];
+      const filteredStats = Object.entries(data.stats).filter(([col]) =>
+        !col.match(/\.\d+$/) && !col.startsWith('col_') && !skipCols.includes(col)
+      ).slice(0, 9);
+      document.getElementById('column-stats').innerHTML = filteredStats.map(([col, stat]) => `
+        <div class="stat-card" style="padding:16px">
+          <p style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${col}</p>
+          <p class="mono" style="font-size:9px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">${stat.kind||stat.type}</p>
+          ${stat.kind==='numeric'?`
+            <div style="display:flex;flex-direction:column;gap:5px">
+              ${[['Average',stat.mean],['Min',stat.min],['Max',stat.max]].map(([k,v])=>
+                `<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3)">${k}</span><span class="mono" style="color:var(--text)">${v??'—'}</span></div>`
+              ).join('')}
+            </div>
+          `:stat.kind==='datetime'?`
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3)">From</span><span class="mono" style="color:var(--text);font-size:10px">${stat.min??'—'}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3)">To</span><span class="mono" style="color:var(--text);font-size:10px">${stat.max??'—'}</span></div>
+            </div>
+          `:`
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3)">Unique</span><span class="mono" style="color:var(--text)">${stat.unique_count}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3)">Empty</span><span class="mono" style="color:var(--text)">${stat.null_count}</span></div>
+              ${stat.top_values?Object.entries(stat.top_values).slice(0,2).map(([k,v])=>
+                `<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;max-width:90px">${k}</span><span class="mono" style="color:var(--text)">${v}</span></div>`
+              ).join(''):''}
+            </div>
+          `}
+        </div>
+      `).join('');
+
+      // Preview table
+      currentTableData = data.preview || [];
+      renderSheetSelector(data.sheet_names || [], data.current_sheet || '');
+      if (data.preview && data.preview.length > 0) {
+        const cols = Object.keys(data.preview[0]);
+        document.getElementById('preview-table').innerHTML = `
+          <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+          <tbody>${data.preview.map(row=>`<tr>${cols.map(c=>`<td>${row[c]??'—'}</td>`).join('')}</tr>`).join('')}</tbody>
+        `;
+      }
+    }
+
+    function setQuestion(q) { document.getElementById('question-input').value = q; askQuestion(); }
+
+    let chatHistory = JSON.parse(sessionStorage.getItem('sagini_chat') || '[]');
+    if (chatHistory.length > 0) {
+      document.addEventListener('DOMContentLoaded', () => renderChatHistory());
+    }
+
+    function isChartRequest(q) {
+      const keywords = ['chart','graph','plot','show me','visualise','visualize','bar','pie','line','scatter','histogram','draw'];
+      return keywords.some(k => q.toLowerCase().includes(k));
+    }
+
+    async function askQuestion() {
+      const question = document.getElementById('question-input').value.trim();
+      if (!question) return;
+      document.getElementById('answer-box').style.display = 'none';
+      document.getElementById('answer-loading').style.display = 'flex';
+
+      try {
+        if (isChartRequest(question)) {
+          // Route to chart builder
+          const res = await fetch(`${API}/api/chart`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question}) });
+          const data = await res.json();
+          if (data.detail) {
+            document.getElementById('answer-text').textContent = data.detail.includes('No data') ? ' Session expired. Please re-upload your file.' : data.detail;
+            document.getElementById('answer-box').style.display = 'block';
+          } else {
+            // Add chart to the right side
+            addCustomChart(data);
+            document.getElementById('answer-text').textContent = '✓ Chart generated: ' + data.title;
+            document.getElementById('answer-box').style.display = 'block';
+            addAnswerToRight(question, '✓ Chart generated and added to Visualisations above.');
+            chatHistory.unshift({ q: question, a: 'Chart generated: ' + data.title });
+            sessionStorage.setItem('sagini_chat', JSON.stringify(chatHistory.slice(0, 20)));
+            renderChatHistory();
+          }
+        } else {
+          // Regular query
+          const res = await fetch(`${API}/api/query`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question}) });
+          const data = await res.json();
+          if (data.detail && data.detail.includes('No data uploaded')) {
+            document.getElementById('answer-text').textContent = ' Session expired. Please re-upload your file to ask questions.';
+            document.getElementById('answer-box').style.display = 'block';
+          } else {
+            const answer = data.answer || data.detail;
+            // Show in sidebar too
+            document.getElementById('answer-text').textContent = answer;
+            document.getElementById('answer-box').style.display = 'block';
+            // Show on right side
+            addAnswerToRight(question, answer);
+            chatHistory.unshift({ q: question, a: answer });
+            sessionStorage.setItem('sagini_chat', JSON.stringify(chatHistory.slice(0, 20)));
+            renderChatHistory();
+          }
+        }
+      } catch (err) {
+        document.getElementById('answer-text').textContent = 'Something went wrong. Please try again.';
+        document.getElementById('answer-box').style.display = 'block';
+      } finally {
+        document.getElementById('answer-loading').style.display = 'none';
+      }
+    }
+
+    let answerCount = 0;
+    function addAnswerToRight(question, answer) {
+      const display = document.getElementById('answer-display');
+      const content = document.getElementById('answer-display-content');
+      display.style.display = 'block';
+      const id = 'answer-' + (answerCount++);
+      const div = document.createElement('div');
+      div.id = id;
+      div.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;box-shadow:var(--shadow);position:relative;border-left:3px solid var(--accent)';
+      div.innerHTML = `
+        <button onclick="document.getElementById('${id}').remove();if(!document.getElementById('answer-display-content').children.length)document.getElementById('answer-display').style.display='none'" 
+          style="position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1">×</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="width:24px;height:24px;background:var(--navy);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <span style="font-family:Georgia,serif;font-size:14px;font-weight:700;color:var(--accent);line-height:1">S</span>
+          </div>
+          <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Sagini AI</span>
+        </div>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:8px;font-style:italic">"${question}"</p>
+        <div style="font-size:13.5px;color:var(--text);line-height:1.75;white-space:pre-line">${answer}</div>
+      `;
+      content.insertBefore(div, content.firstChild);
+      display.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    let customChartCount = 0;
+    function addCustomChart(data) {
+      const chartsGrid = document.getElementById('charts-grid');
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const plotBg = isDark ? '#0f1829' : '#ffffff';
+      const plotText = isDark ? '#e8edf5' : '#0d1526';
+      const plotGrid = isDark ? '#1e2d4a' : '#dde2ee';
+      const id = 'custom-chart-' + (customChartCount++);
+      const div = document.createElement('div');
+      div.className = 'chart-card';
+      div.style.gridColumn = '1 / -1';
+      div.id = id;
+      // Add remove button
+      div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px">${data.title}</span>
+        <button onclick="this.closest('.chart-card').remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1">×</button>
+      </div><div id="${id}-plot"></div>`;
+      chartsGrid.insertBefore(div, chartsGrid.firstChild);
+      Plotly.newPlot(`${id}-plot`, data.chart.data, {
+        ...data.chart.layout,
+        margin: { t: 36, b: 44, l: 44, r: 12 },
+        height: 300,
+        paper_bgcolor: plotBg, plot_bgcolor: plotBg,
+        font: { color: plotText, family: 'Sora' },
+        xaxis: { ...data.chart.layout?.xaxis, gridcolor: plotGrid, linecolor: plotGrid },
+        yaxis: { ...data.chart.layout?.yaxis, gridcolor: plotGrid, linecolor: plotGrid },
+      }, { responsive: true, displayModeBar: false });
+
+      // Scroll to charts
+      div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function renderChatHistory() {
+      const box = document.getElementById('chat-history-box');
+      const list = document.getElementById('chat-history');
+      if (chatHistory.length === 0) { box.style.display = 'none'; return; }
+      box.style.display = 'block';
+      list.innerHTML = chatHistory.slice(0, 10).map(item => `
+        <div class="chat-item">
+          <div class="chat-q">Q: ${item.q}</div>
+          <div class="chat-a">${item.a.substring(0, 120)}${item.a.length > 120 ? '...' : ''}</div>
+        </div>
+      `).join('');
+    }
+
+    function clearHistory() {
+      chatHistory = [];
+      sessionStorage.removeItem('sagini_chat');
+      renderChatHistory();
+    }
+
+    function resetDashboard() {
+      sessionStorage.removeItem('sagini_data');
+    }
+
+    async function loadSampleData() {
+      clearAdminOverlays();
+      const csv = `name,department,salary,age,years_experience,performance_score
+Alice Johnson,Engineering,95000,32,8,4.5
+Bob Smith,Marketing,72000,28,4,3.8
+Carol Williams,Engineering,88000,35,10,4.2
+David Brown,Sales,65000,26,2,3.5
+Emma Davis,HR,68000,30,5,4.0
+Frank Miller,Engineering,102000,40,15,4.8
+Grace Wilson,Marketing,78000,33,7,4.1
+Henry Moore,Sales,71000,29,3,3.7
+Iris Taylor,Engineering,91000,36,11,4.4
+Jack Anderson,HR,64000,27,3,3.6
+Karen Thomas,Marketing,82000,34,8,4.3
+Liam Jackson,Sales,69000,25,1,3.4
+Mia White,Engineering,98000,38,13,4.6
+Noah Harris,HR,66000,31,6,3.9
+Olivia Martin,Marketing,75000,29,5,4.0`;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      handleFileUpload(new File([blob], 'sample_employees.csv', { type: 'text/csv' }));
+    }
+
+    async function fetchCleaningSuggestions() {
+      try {
+        const res = await fetch(`${API}/api/cleaning-suggestions`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const container = document.getElementById('cleaning-suggestions');
+        container.innerHTML = data.suggestions.map(s => `
+          <div class="suggestion-item">
+            <div class="sug-dot-${s.severity}"></div>
+            <div>
+              <div class="sug-col">${s.column}</div>
+              <div class="sug-issue">${s.issue}</div>
+              <div class="sug-text">${s.suggestion}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch(e) {}
+    }
+
+    function goHome() {
+      // Clear session and go back to upload screen
+      sessionStorage.removeItem('sagini_data');
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('empty-state').style.display = 'flex';
+      document.getElementById('file-info-box').style.display = 'none';
+      document.getElementById('mini-stats-box').style.display = 'none';
+      document.getElementById('ask-box').style.display = 'none';
+      document.getElementById('chat-history-box').style.display = 'none';
+      document.getElementById('sheet-selector-box').style.display = 'none';
+      document.getElementById('compare-sidebar-box').style.display = 'none';
+      document.getElementById('compare-results').style.display = 'none';
+      document.getElementById('auto-clean-section').style.display = 'none';
+      document.getElementById('clean-results').style.display = 'none';
+      document.getElementById('drop-zone').style.display = 'block';
+      document.querySelector('.sample-btn').style.display = 'block';
+      document.getElementById('file-input').value = '';
+    }
+
+    function renderSheetSelector(sheetNames, currentSheet) {
+      const box = document.getElementById('sheet-selector-box');
+      const btns = document.getElementById('sheet-buttons');
+      if (!sheetNames || sheetNames.length === 0) { box.style.display = 'none'; return; }
+      box.style.display = 'block';
+      btns.innerHTML = sheetNames.map(name => `
+        <button onclick="selectSheet('${name}')" class="chip" style="text-align:left;${name===currentSheet?'background:var(--navy);color:var(--accent);border-color:transparent':''}">${name}</button>
+      `).join('');
+    }
+
+    async function selectSheet(sheetName) {
+      document.getElementById('loading').style.display = 'flex';
+      document.getElementById('results').style.display = 'none';
+      setProgress(30, 'Loading sheet...');
+      try {
+        const res = await fetch(`${API}/api/select-sheet`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({question: sheetName})
+        });
+        if (!res.ok) { const err = await res.json(); throw new Error(err.detail); }
+        const data = await res.json();
+        setProgress(100, 'Done!');
+        setTimeout(() => {
+          sessionStorage.setItem('sagini_data', JSON.stringify({...data, sheet_names: JSON.parse(sessionStorage.getItem('sagini_data')||'{}').sheet_names || []}));
+          renderResults({...data, current_sheet: sheetName});
+        }, 300);
+      } catch (err) {
+        alert(friendlyError(err.message));
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('results').style.display = 'block';
+      }
+    }
+
+    let currentTableData = [];
+
+    function downloadCSV() {
+      if (!currentTableData.length) return;
+      const cols = Object.keys(currentTableData[0]);
+      const rows = currentTableData.map(row => cols.map(c => `"${(row[c]??'').toString().replace(/"/g,'""')}"`).join(','));
+      const csv = [cols.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], {type:'text/csv'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'sagini_analysis.csv';
+      a.click();
+    }
+
+    let _cleaningSuggestions = [];
+
+    async function downloadReport() {
+      if (!window._lastData) { alert('Please upload a file first.'); return; }
+      const data = window._lastData;
+
+      // Fetch fresh cleaning suggestions
+      try {
+        const res = await fetch(`${API}/api/cleaning-suggestions`);
+        if (res.ok) {
+          const cd = await res.json();
+          _cleaningSuggestions = cd.suggestions || [];
+        }
+      } catch(e) {}
+
+      // Capture charts as images
+      const chartImages = [];
+      const chartCards = document.querySelectorAll('#charts-grid .chart-card');
+      for (let i = 0; i < chartCards.length; i++) {
+        try {
+          const canvas = await Plotly.toImage(document.getElementById('chart-' + i), {format:'png', width:600, height:280});
+          const title = data.charts[i]?.title || 'Chart ' + (i+1);
+          chartImages.push({img: canvas, title: title});
+        } catch(e) {}
+      }
+
+      const chartsHtml = chartImages.map(c => `
+        <div style="margin-bottom:20px">
+          <p style="font-size:12px;font-weight:600;color:#0d1526;margin-bottom:8px">${c.title}</p>
+          <img src="${c.img}" style="width:100%;border-radius:8px;border:1px solid #dde2ee">
+        </div>
+      `).join('');
+
+      const lines = [];
+      lines.push('SAGINI AI ANALYTICS');
+      lines.push('Data Analysis Report');
+      lines.push('='.repeat(60));
+      lines.push('');
+      lines.push('File: ' + data.filename);
+      lines.push('Generated: ' + new Date().toLocaleString());
+      lines.push('');
+      lines.push('OVERVIEW');
+      lines.push('-'.repeat(40));
+      lines.push('Total Rows:      ' + data.summary.rows);
+      lines.push('Total Columns:   ' + data.summary.columns);
+      lines.push('Empty Cells:     ' + data.summary.missing_values);
+      lines.push('Duplicate Rows:  ' + data.summary.duplicate_rows);
+      lines.push('');
+      lines.push('SAGINI AI ANALYSIS');
+      lines.push('-'.repeat(40));
+      lines.push(data.insights);
+      lines.push('');
+      lines.push('DATA QUALITY SUGGESTIONS');
+      lines.push('-'.repeat(40));
+      if (_cleaningSuggestions.length > 0) {
+        _cleaningSuggestions.forEach(s => {
+          lines.push('');
+          lines.push('[' + s.severity.toUpperCase() + '] ' + s.column);
+          lines.push('Issue: ' + s.issue);
+          lines.push('Suggestion: ' + s.suggestion);
+        });
+      } else {
+        lines.push('No quality issues detected.');
+      }
+      lines.push('');
+      lines.push('COLUMN SUMMARY');
+      lines.push('-'.repeat(40));
+      Object.entries(data.stats).forEach(([col, stat]) => {
+        if (col.match(/\.\d+$/) || col.startsWith('col_') || col === 'Sheet') return;
+        lines.push('');
+        lines.push(col + ' (' + (stat.kind || stat.type) + ')');
+        if (stat.kind === 'numeric') {
+          lines.push('  Average: ' + (stat.mean ?? '—') + '   Min: ' + (stat.min ?? '—') + '   Max: ' + (stat.max ?? '—'));
+        } else if (stat.kind === 'datetime') {
+          lines.push('  From: ' + (stat.min ?? '—') + '   To: ' + (stat.max ?? '—'));
+        } else {
+          lines.push('  Unique Values: ' + stat.unique_count + '   Empty Cells: ' + stat.null_count);
+          if (stat.top_values) {
+            const top = Object.entries(stat.top_values).slice(0,3).map(([k,v]) => k + ' (' + v + ')').join(', ');
+            lines.push('  Top Values: ' + top);
+          }
+        }
+      });
+      lines.push('');
+      if (chatHistory.length > 0) {
+        lines.push('QUESTIONS & ANSWERS');
+        lines.push('-'.repeat(40));
+        chatHistory.forEach(item => {
+          lines.push('');
+          lines.push('Q: ' + item.q);
+          lines.push('A: ' + item.a);
+        });
+        lines.push('');
+      }
+      lines.push('DATA PREVIEW (First 10 rows)');
+      lines.push('-'.repeat(40));
+      if (currentTableData.length > 0) {
+        const cols = Object.keys(currentTableData[0]);
+        lines.push(cols.join(' | '));
+        lines.push('-'.repeat(cols.length * 10));
+        currentTableData.forEach(row => {
+          lines.push(cols.map(c => String(row[c] ?? '—').substring(0, 15)).join(' | '));
+        });
+      }
+      lines.push('');
+      lines.push('='.repeat(60));
+      lines.push('NOTICE: Sagini AI Data Intelligence provides automated analysis');
+      lines.push('for informational purposes only. Results may not be 100% accurate.');
+      lines.push('Always verify critical financial or business data independently.');
+      lines.push('© 2026 Sagini AI Analytics — All rights reserved');
+
+      const blob = new Blob([lines.join('\n')], {type: 'text/plain'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Sagini_Report_' + data.filename.replace(/\.[^.]+$/, '') + '_' + new Date().toISOString().slice(0,10) + '.txt';
+      a.click();
+    }
+
+
+    // ── COMPARISON FEATURE ──────────────────────────────────────────────
+
+    function showCompareSidebar() {
+      document.getElementById('compare-sidebar-box').style.display = 'block';
+    }
+
+    function clearComparison() {
+      document.getElementById('compare-results').style.display = 'none';
+      document.getElementById('auto-clean-section').style.display = 'none';
+      document.getElementById('clean-results').style.display = 'none';
+      document.getElementById('compare-file-name').style.display = 'none';
+      document.getElementById('compare-file-input').value = '';
+    }
+
+    const cmpDrop = document.getElementById('compare-drop-zone');
+    cmpDrop.addEventListener('dragover', e => { e.preventDefault(); cmpDrop.classList.add('drag-over'); });
+    cmpDrop.addEventListener('dragleave', () => cmpDrop.classList.remove('drag-over'));
+    cmpDrop.addEventListener('drop', e => { e.preventDefault(); cmpDrop.classList.remove('drag-over'); handleCompareUpload(e.dataTransfer.files[0]); });
+
+    async function handleCompareUpload(file) {
+      if (!file) return;
+      if (!window._lastData) {
+        alert('Please upload your primary file first before comparing.');
+        return;
+      }
+
+      // Show file name
+      document.getElementById('compare-fname-text').textContent = file.name;
+      document.getElementById('compare-file-name').style.display = 'block';
+      document.getElementById('compare-loading-inline').style.display = 'flex';
+      document.getElementById('compare-results').style.display = 'none';
+      document.getElementById('auto-clean-section').style.display = 'none';
+      document.getElementById('clean-results').style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch(`${API}/api/compare`, { method: 'POST', body: formData });
+        if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Compare failed'); }
+        const data = await res.json();
+        renderComparison(data);
+      } catch (err) {
+        alert('Comparison failed: ' + err.message);
+      } finally {
+        document.getElementById('compare-loading-inline').style.display = 'none';
+      }
+    }
+
+    function renderComparison(data) {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const plotBg = isDark ? '#0f1829' : '#ffffff';
+      const plotText = isDark ? '#e8edf5' : '#0d1526';
+      const plotGrid = isDark ? '#1e2d4a' : '#dde2ee';
+
+      // File names
+      document.getElementById('cmp-name1').textContent = data.file1.name;
+      document.getElementById('cmp-name2').textContent = data.file2.name;
+
+      // Stats cards
+      const renderStats = (el, f) => {
+        el.innerHTML = [
+          ['Rows', f.rows.toLocaleString()],
+          ['Columns', f.cols],
+          ['Empty Cells', f.missing.toLocaleString()],
+          ['Duplicates', f.duplicates],
+        ].map(([l, v]) => `
+          <div class="cmp-row">
+            <span class="cmp-label">${l}</span>
+            <span class="cmp-val">${v}</span>
+          </div>`).join('');
+      };
+      renderStats(document.getElementById('cmp-stats1'), data.file1);
+      renderStats(document.getElementById('cmp-stats2'), data.file2);
+
+      // Column overlap
+      document.getElementById('cmp-shared-count').textContent = data.common_columns.length;
+      document.getElementById('cmp-only1-count').textContent = (data.only_in_file1 || []).length;
+      document.getElementById('cmp-only2-count').textContent = (data.only_in_file2 || []).length;
+
+      const tagList = document.getElementById('cmp-col-tags');
+      const sharedTags = data.common_columns.slice(0, 12).map(c => `<span class="tag tag-shared">${c}</span>`).join('');
+      const only1Tags = (data.only_in_file1 || []).slice(0, 6).map(c => `<span class="tag tag-only1">${c}</span>`).join('');
+      const only2Tags = (data.only_in_file2 || []).slice(0, 6).map(c => `<span class="tag tag-only2">${c}</span>`).join('');
+      tagList.innerHTML = `<div class="tag-list">${sharedTags}${only1Tags}${only2Tags}</div>
+        <p style="font-size:9px;color:var(--text3);margin-top:6px">
+          <span style="color:var(--green)">■</span> Shared &nbsp;
+          <span style="color:#c8692a">■</span> Only in File 1 &nbsp;
+          <span style="color:#6366f1">■</span> Only in File 2
+        </p>`;
+
+      // Summary metric cards
+      const sumMetrics = data.summary_metrics || {};
+      const sumKeys = Object.keys(sumMetrics);
+      if (sumKeys.length > 0) {
+        document.getElementById('cmp-summary-cards').style.display = 'block';
+        document.getElementById('cmp-metric-cards').innerHTML = sumKeys.map(col => {
+          const m = sumMetrics[col];
+          const up = m.difference >= 0;
+          const pct = m.pct_change !== null ? (up ? '+' : '') + m.pct_change + '%' : '';
+          const arrow = up ? '▲' : '▼';
+          const clr = up ? 'var(--green)' : '#dc2626';
+          return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px">
+            <p style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:6px">${col}</p>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:9px;color:#c8692a;font-weight:600">FILE 1</span>
+              <span style="font-size:12px;font-weight:700;color:var(--text);font-family:JetBrains Mono,monospace">${(m.file1_total ?? 0).toLocaleString()}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:9px;color:#6366f1;font-weight:600">FILE 2</span>
+              <span style="font-size:12px;font-weight:700;color:var(--text);font-family:JetBrains Mono,monospace">${(m.file2_total ?? 0).toLocaleString()}</span>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px;color:var(--text3)">Change</span>
+              <span style="font-size:12px;font-weight:700;color:${clr}">${arrow} ${pct || (m.difference >= 0 ? '+' : '') + m.difference.toLocaleString()}</span>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      // Numeric deep table
+      const numComp = data.numeric_comparison || {};
+      const numKeys = Object.keys(numComp);
+      if (numKeys.length > 0) {
+        document.getElementById('cmp-numeric-wrap').style.display = 'block';
+        document.getElementById('cmp-num-body').innerHTML = numKeys.map(col => {
+          const c = numComp[col];
+          const diff = c.file2_total !== null && c.file1_total !== null ? c.file2_total - c.file1_total : null;
+          const diffFmt = diff !== null ? (diff >= 0 ? '+' : '') + diff.toLocaleString() : '—';
+          const diffClr = diff === null ? '' : diff >= 0 ? 'style="color:var(--green);font-weight:700"' : 'style="color:#dc2626;font-weight:700"';
+          const pct = c.pct_change !== null ? (c.pct_change >= 0 ? '+' : '') + c.pct_change + '%' : '—';
+          const pctClr = c.pct_change === null ? '' : c.pct_change >= 0 ? 'style="color:var(--green);font-weight:700"' : 'style="color:#dc2626;font-weight:700"';
+          return `<tr>
+            <td style="font-weight:600;color:var(--text)">${col}</td>
+            <td style="color:#c8692a;font-weight:600">${c.file1_total !== null ? c.file1_total.toLocaleString() : '—'}</td>
+            <td style="color:#6366f1;font-weight:600">${c.file2_total !== null ? c.file2_total.toLocaleString() : '—'}</td>
+            <td ${diffClr}>${diffFmt}</td>
+            <td ${pctClr}>${pct}</td>
+            <td>${c.file1_mean ?? '—'}</td>
+            <td>${c.file2_mean ?? '—'}</td>
+            <td>${c.file1_max ?? '—'}</td>
+            <td>${c.file2_max ?? '—'}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // Comparison charts
+      const grid = document.getElementById('cmp-charts-grid');
+      grid.innerHTML = '';
+      (data.comparison_charts || []).forEach((chart, i) => {
+        const div = document.createElement('div');
+        div.className = 'chart-card';
+        div.id = `cmp-chart-${i}`;
+        grid.appendChild(div);
+        Plotly.newPlot(`cmp-chart-${i}`, chart.data.data, {
+          ...chart.data.layout,
+          margin: { t: 36, b: 40, l: 40, r: 12 },
+          height: 240,
+          paper_bgcolor: plotBg, plot_bgcolor: plotBg,
+          font: { color: plotText, family: 'Sora' },
+          xaxis: { ...chart.data.layout?.xaxis, gridcolor: plotGrid, linecolor: plotGrid },
+          yaxis: { ...chart.data.layout?.yaxis, gridcolor: plotGrid, linecolor: plotGrid },
+          showlegend: true,
+          legend: { font: { size: 10, color: plotText } }
+        }, { responsive: true, displayModeBar: false });
+      });
+
+      // AI text
+      document.getElementById('cmp-ai-text').textContent = data.ai_comparison || 'AI comparison unavailable.';
+
+      // Previews
+      const renderPreview = (tableId, rows) => {
+        if (!rows || !rows.length) { document.getElementById(tableId).innerHTML = '<tr><td style="padding:12px;color:var(--text3)">No preview available</td></tr>'; return; }
+        const cols = Object.keys(rows[0]);
+        document.getElementById(tableId).innerHTML = `
+          <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+          <tbody>${rows.map(row => `<tr>${cols.map(c => `<td>${row[c] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>`;
+      };
+      renderPreview('cmp-preview1', data.preview1);
+      renderPreview('cmp-preview2', data.preview2);
+
+      // Show results
+      document.getElementById('compare-results').style.display = 'block';
+      document.getElementById('compare-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+
+    // ── ANOMALY DETECTION ────────────────────────────────────────────────
+
+    const ANOMALY_ICONS = {
+        outlier: '',
+        spike: '',
+        duplicate: '',
+        missing: '',
+        negative: '',
+        zeros: '',
+    };
+
+    async function fetchAnomalies() {
+        try {
+            const res = await fetch(`${API}/api/anomalies`);
+            if (!res.ok) return;
+            const data = await res.json();
+            renderAnomalies(data);
+        } catch(e) {}
+    }
+
+    function renderAnomalies(data) {
+        const section = document.getElementById('anomaly-section');
+        const list = document.getElementById('anomaly-list');
+        const badge = document.getElementById('anomaly-count-badge');
+        const aiBox = document.getElementById('anomaly-ai-box');
+        const aiText = document.getElementById('anomaly-ai-text');
+
+        if (!data.anomalies || data.anomalies.length === 0) {
+            section.style.display = 'block';
+            badge.textContent = '✓ No anomalies found';
+            badge.style.background = 'rgba(26,122,82,0.12)';
+            badge.style.color = 'var(--green)';
+            list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">✓ No anomalies detected — your data looks clean!</div>';
+            return;
+        }
+
+        section.style.display = 'block';
+        badge.textContent = `${data.total} issue${data.total !== 1 ? 's' : ''} found`;
+
+        // AI summary
+        if (data.ai_summary) {
+            aiBox.style.display = 'block';
+            aiText.textContent = data.ai_summary;
+        }
+
+        // Group by severity
+        const high = data.anomalies.filter(a => a.severity === 'high');
+        const medium = data.anomalies.filter(a => a.severity === 'medium');
+        const low = data.anomalies.filter(a => a.severity === 'low');
+
+        list.innerHTML = '';
+
+        // Severity summary bar
+        list.innerHTML += `
+            <div style="display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap">
+                ${high.length ? `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2)">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block"></span>
+                    <span style="font-size:11px;font-weight:600;color:#dc2626">${high.length} High</span>
+                </div>` : ''}
+                ${medium.length ? `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.2)">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#d97706;display:inline-block"></span>
+                    <span style="font-size:11px;font-weight:600;color:#d97706">${medium.length} Medium</span>
+                </div>` : ''}
+                ${low.length ? `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;background:rgba(26,122,82,0.08);border:1px solid rgba(26,122,82,0.2)">
+                    <span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span>
+                    <span style="font-size:11px;font-weight:600;color:var(--green)">${low.length} Low</span>
+                </div>` : ''}
+            </div>`;
+
+        // Render each anomaly
+        data.anomalies.forEach(a => {
+            const icon = ANOMALY_ICONS[a.type] || '🔍';
+            const sev = a.severity;
+            list.innerHTML += `
+                <div class="anomaly-item">
+                    <div class="anomaly-icon anomaly-${sev}">${icon}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:4px">
+                            <span class="anomaly-type">${a.type}</span>
+                            <span class="anomaly-badge badge-${sev}">${sev}</span>
+                            ${a.value !== null && a.value !== undefined ? `<span style="font-family:JetBrains Mono,monospace;font-size:10px;color:var(--text3);margin-left:4px">value: ${a.value.toLocaleString()}</span>` : ''}
+                        </div>
+                        <div class="anomaly-col">${a.column}${a.row >= 0 ? ` · row ${a.row}` : ''}</div>
+                        <div class="anomaly-desc">${a.description}</div>
+                        ${a.expected_range ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">Expected range: <span style="font-family:JetBrains Mono,monospace;color:var(--text2)">${a.expected_range}</span></div>` : ''}
+                    </div>
+                </div>`;
+        });
+
+        // Anomaly type breakdown chart
+        const typeCounts = {};
+        data.anomalies.forEach(a => { typeCounts[a.type] = (typeCounts[a.type] || 0) + 1; });
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const plotBg = isDark ? '#0f1829' : '#ffffff';
+        const plotText = isDark ? '#e8edf5' : '#0d1526';
+
+        const chartDiv = document.getElementById('anomaly-chart');
+        chartDiv.innerHTML = '<div class="chart-card" id="anomaly-breakdown-chart"></div>';
+        Plotly.newPlot('anomaly-breakdown-chart',
+            [{
+                type: 'bar',
+                x: Object.keys(typeCounts),
+                y: Object.values(typeCounts),
+                marker: { color: ['#dc2626','#d97706','#6366f1','#0891b2','#2d7a5e','#c8692a'] }
+            }],
+            {
+                margin: { t: 30, b: 40, l: 40, r: 12 },
+                height: 200,
+                paper_bgcolor: plotBg, plot_bgcolor: plotBg,
+                font: { color: plotText, family: 'Sora', size: 11 },
+                title: { text: 'Anomalies by Type', font: { size: 12, color: plotText } },
+                xaxis: { gridcolor: isDark ? '#1e2d4a' : '#dde2ee' },
+                yaxis: { gridcolor: isDark ? '#1e2d4a' : '#dde2ee' },
+            },
+            { responsive: true, displayModeBar: false }
+        );
+    }
+
+
+    async function runAutoClean() {
+        const btn = document.getElementById('run-clean-btn');
+        btn.disabled = true;
+        btn.textContent = 'Cleaning...';
+        try {
+            const res = await fetch(`${API}/api/clean`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Clean failed');
+            if (!data || !data.report) throw new Error('Invalid response from server');
+            renderCleanResults(data);
+        } catch(err) {
+            alert('Clean failed: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Re-run Clean';
+        }
+    }
+
+    function renderCleanResults(data) {
+        document.getElementById('clean-results').style.display = 'block';
+        document.getElementById('clean-stats').innerHTML = [
+            { label: 'Rows Removed', value: data.rows_removed, color: '#dc2626', sub: 'duplicates' },
+            { label: 'Cells Fixed', value: data.cells_fixed, color: 'var(--green)', sub: 'empty filled' },
+            { label: 'Remaining Empty', value: data.cleaned_missing, color: '#d97706', sub: 'still missing' },
+        ].map(s => `
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+                <div style="font-size:24px;font-weight:700;color:${s.color}">${s.value.toLocaleString()}</div>
+                <div style="font-size:10px;font-weight:700;color:var(--text);margin-top:3px">${s.label}</div>
+                <div style="font-size:9px;color:var(--text3)">${s.sub}</div>
+            </div>`).join('');
+
+        document.getElementById('clean-actions').innerHTML = data.report.length ? data.report.map(r => `
+            <div class="clean-action">
+                <div>
+                    <div class="clean-action-title">${r.action}</div>
+                    <div class="clean-action-detail">${r.detail}</div>
+                </div>
+            </div>`).join('') : '<div style="padding:14px;color:var(--text3);font-size:12px">No changes needed — data was already clean.</div>';
+
+        window._cleanedPreview = data.preview;
+        document.getElementById('clean-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function toggleCleanPreview() {
+        const wrap = document.getElementById('clean-preview-wrap');
+        const btn = document.getElementById('preview-clean-btn');
+        if (wrap.style.display === 'none') {
+            wrap.style.display = 'block';
+            btn.textContent = 'Hide Preview';
+            if (window._cleanedPreview && window._cleanedPreview.length > 0) {
+                const cols = Object.keys(window._cleanedPreview[0]);
+                document.getElementById('clean-preview-table').innerHTML =
+                    '<thead><tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>' +
+                    window._cleanedPreview.map(row => '<tr>' + cols.map(c => '<td>' + (row[c] ?? '—') + '</td>').join('') + '</tr>').join('') + '</tbody>';
+            }
+        } else {
+            wrap.style.display = 'none';
+            btn.textContent = 'Preview Cleaned Data';
+        }
+    }
+
+    async function downloadCleanedCSV() {
+        try {
+            const res = await fetch(`${API}/api/download-cleaned`);
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+            const blob = await res.blob();
+            const cd = res.headers.get('Content-Disposition') || '';
+            const match = cd.match(/filename=(.+)/);
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = match ? match[1] : 'cleaned_data.csv';
+            a.click();
+        } catch(err) {
+            alert('Download failed: ' + err.message);
+        }
+    }
+
+
+    // ── SHARE & PIN ──────────────────────────────────────────────────────
+
+    let currentShareUrl = '';
+
+    function openShareModal() {
+        if (!window._lastData) { alert('Please upload a file first.'); return; }
+        document.getElementById('share-modal').style.display = 'flex';
+        document.getElementById('share-link-box').style.display = 'none';
+        document.getElementById('share-pin-input').value = '';
+    }
+
+    function closeShareModal() {
+        document.getElementById('share-modal').style.display = 'none';
+    }
+
+    async function generateShareLink() {
+        const pin = document.getElementById('share-pin-input').value.trim();
+        const btn = document.querySelector('#share-modal .modal-btn');
+        btn.textContent = 'Generating report... please wait';
+        btn.disabled = true;
+        try {
+            const res = await fetch(`${API}/api/share`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin })
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+            const data = await res.json();
+            currentShareUrl = window.location.origin + data.share_url;
+            document.getElementById('share-link-url').textContent = currentShareUrl;
+            document.getElementById('share-link-box').style.display = 'block';
+            document.getElementById('share-pin-reminder').style.display = data.pin_protected ? 'block' : 'none';
+        } catch(err) {
+            alert('Failed to generate link: ' + err.message);
+        } finally {
+            btn.textContent = 'Generate Share Link';
+            btn.disabled = false;
+        }
+    }
+
+    function copyShareLink() {
+        navigator.clipboard.writeText(currentShareUrl).then(() => {
+            const btn = document.querySelector('.copy-btn');
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy Link', 2000);
+        });
+    }
+
+    function openShareLink() {
+        window.open(currentShareUrl, '_blank');
+    }
+
+
+    // ── CLEANUP ON NEW FILE LOAD ────────────────────────────────────────
+    function clearAdminOverlays() {
+        const overlay = document.getElementById('admin-chart-overlay');
+        if (overlay) overlay.remove();
+        const panel = document.getElementById('profile-panel');
+        if (panel) panel.classList.remove('open');
+    }
+
+    // ── ADMIN CHARTS ─────────────────────────────────────────────────────
+
+    function showAdminChart(type) {
+        if (window.innerWidth <= 768) { document.getElementById('profile-panel').classList.remove('open'); }
+        const data = window._adminData;
+        if (!data) return;
+
+        // Keep profile panel open
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const plotBg = isDark ? '#0f1829' : '#ffffff';
+        const plotText = isDark ? '#e8edf5' : '#0d1526';
+        const plotGrid = isDark ? '#1e2d4a' : '#dde2ee';
+
+        // Show admin chart overlay in main content
+        let existing = document.getElementById('admin-chart-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'admin-chart-overlay';
+        overlay.className = 'fade-in';
+        overlay.style.cssText = 'position:fixed;top:60px;left:280px;right:360px;bottom:0;background:var(--bg);z-index:80;overflow-y:auto;padding:28px;';
+
+        const days = [...data.signups_by_day].reverse();
+        const labels = days.map(d => d.day);
+        const counts = days.map(d => d.count);
+
+        // Cumulative users
+        const cumulative = [];
+        let total = data.total_users - counts.reduce((a,b)=>a+b,0);
+        counts.forEach(c => { total += c; cumulative.push(total); });
+
+        // Upload activity per user
+        const uploadCounts = data.recent_users.map(u => u.upload_count);
+        const uploadBuckets = {'0': 0, '1-3': 0, '4-10': 0, '10+': 0};
+        uploadCounts.forEach(c => {
+            if (c === 0) uploadBuckets['0']++;
+            else if (c <= 3) uploadBuckets['1-3']++;
+            else if (c <= 10) uploadBuckets['4-10']++;
+            else uploadBuckets['10+']++;
+        });
+
+        // Format labels as Month Year e.g. "Apr 2026"
+        const fmtLabel = (d) => {
+            if (!d) return '';
+            const dt = new Date(d);
+            return dt.toLocaleDateString('en-GB', {month:'short', year:'numeric'});
+        };
+        // Group by month
+        const monthMap = {};
+        days.forEach((d, i) => {
+            const key = fmtLabel(d.day);
+            monthMap[key] = (monthMap[key] || 0) + counts[i];
+        });
+        const niceLabels = Object.keys(monthMap);
+        const monthlyCounts = Object.values(monthMap);
+
+        // Cumulative by month
+        const monthlyCumulative = [];
+        let runTotal = data.total_users - counts.reduce((a,b)=>a+b,0);
+        monthlyCounts.forEach(c => { runTotal += c; monthlyCumulative.push(runTotal); });
+
+        overlay.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+                <div>
+                    <h2 style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px">Platform Analytics</h2>
+                    <p style="font-size:12px;color:var(--text3)">${data.total_users} total users · ${data.total_uploads} total uploads</p>
+                </div>
+                <button onclick="document.getElementById('admin-chart-overlay').remove()" style="background:none;border:1px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:7px;cursor:pointer;font-family:Sora,sans-serif;font-size:12px;font-weight:600">Close</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:14px">
+                <div class="chart-card" id="ac-bar" style="position:relative"></div>
+                <div class="chart-card" id="ac-line" style="position:relative"></div>
+                <div class="chart-card" id="ac-pie" style="position:relative"></div>
+                <div class="chart-card" id="ac-uploads" style="position:relative"></div>
+            </div>
+        `;
+        document.querySelector('.main-content').appendChild(overlay);
+
+        // Scroll to correct chart after render
+        const chartScrollMap = { signups:'ac-bar', today:'ac-bar', active:'ac-pie', uploads:'ac-uploads' };
+        setTimeout(() => {
+            const el = document.getElementById(chartScrollMap[type] || 'ac-bar');
+            if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+        }, 1200);
+
+        setTimeout(() => {
+            // Monthly signups line
+            Plotly.newPlot('ac-bar',
+                [{
+                    type:'scatter', mode:'lines+markers',
+                    x:niceLabels, y:monthlyCounts,
+                    line:{color:'#c8962e', width:2.5, shape:'spline'},
+                    marker:{color:'#c8962e', size:6},
+                    fill:'tozeroy',
+                    fillcolor:'rgba(200,150,46,0.08)',
+                    name:'Daily Signups'
+                }],
+                { title:{text:'Daily Signups — Last 14 Days',font:{size:13,color:plotText}}, margin:{t:40,b:60,l:50,r:20}, height:300,
+                  paper_bgcolor:plotBg, plot_bgcolor:plotBg, font:{color:plotText,family:'Sora',size:11},
+                  xaxis:{gridcolor:plotGrid, type:'category', tickangle:-30, tickfont:{size:11}},
+                  yaxis:{gridcolor:plotGrid, title:{text:'Signups',font:{size:11}}} },
+                { displayModeBar:false, responsive:true }
+            );
+
+            // Cumulative users line
+            Plotly.newPlot('ac-line',
+                [{ type:'scatter', mode:'lines+markers', x:niceLabels, y:monthlyCumulative, line:{color:'#6366f1',width:2}, marker:{color:'#6366f1',size:5}, name:'Total Users' }],
+                { title:{text:'Cumulative User Growth',font:{size:13,color:plotText}}, margin:{t:40,b:60,l:50,r:20}, height:300,
+                  paper_bgcolor:plotBg, plot_bgcolor:plotBg, font:{color:plotText,family:'Sora',size:11},
+                  xaxis:{gridcolor:plotGrid, type:'category', tickangle:-30, tickfont:{size:11}},
+                  yaxis:{gridcolor:plotGrid, title:{text:'Total Users',font:{size:11}}} },
+                { displayModeBar:false, responsive:true }
+            );
+
+            // Active vs inactive pie
+            Plotly.newPlot('ac-pie',
+                [{ type:'pie', labels:['Active (7d)','Inactive'], values:[data.active_7d, Math.max(0, data.total_users - data.active_7d)],
+                   marker:{colors:['#1a9e6a','#1a2d4a']}, textfont:{color:'white'} }],
+                { title:{text:'Active vs Inactive Users (Last 7 Days)',font:{size:13,color:plotText}}, margin:{t:40,b:20,l:20,r:20}, height:300,
+                  paper_bgcolor:plotBg, plot_bgcolor:plotBg, font:{color:plotText,family:'Sora',size:11},
+                  legend:{font:{color:plotText, size:12}} },
+                { displayModeBar:false, responsive:true }
+            );
+
+            // Uploads over time — real data from uploads table
+            const uploadDays = [...(data.uploads_by_day || [])].reverse();
+            // Group uploads by month
+            const uploadMonthMap = {};
+            uploadDays.forEach(d => {
+                const dt = new Date(d.day);
+                const key = dt.toLocaleDateString('en-GB', {month:'short', year:'numeric'});
+                uploadMonthMap[key] = (uploadMonthMap[key] || 0) + d.count;
+            });
+            const uploadLabels = Object.keys(uploadMonthMap);
+            const uploadCounts = Object.values(uploadMonthMap);
+
+            // Cumulative uploads
+            const uploadCumulative = [];
+            let runningUploads = 0;
+            uploadCounts.forEach(c => { runningUploads += c; uploadCumulative.push(runningUploads); });
+
+            Plotly.newPlot('ac-uploads',
+                [
+                    {
+                        type:'scatter', mode:'lines+markers',
+                        x: uploadLabels, y: uploadCounts,
+                        line:{color:'#d97706', width:2.5, shape:'spline'},
+                        marker:{color:'#d97706', size:7},
+                        fill:'tozeroy', fillcolor:'rgba(217,119,6,0.08)',
+                        name:'Daily Uploads'
+                    },
+                    {
+                        type:'scatter', mode:'lines',
+                        x: uploadLabels, y: uploadCumulative,
+                        line:{color:'#6366f1', width:2, dash:'dot'},
+                        name:'Cumulative'
+                    }
+                ],
+                { title:{text:'Upload Activity Over Time',font:{size:13,color:plotText}},
+                  margin:{t:40,b:60,l:50,r:20}, height:300,
+                  paper_bgcolor:plotBg, plot_bgcolor:plotBg, font:{color:plotText,family:'Sora',size:11},
+                  xaxis:{gridcolor:plotGrid, type:'category', tickangle:-30, tickfont:{size:11}},
+                  yaxis:{gridcolor:plotGrid, title:{text:'Uploads',font:{size:11}}},
+                  legend:{font:{color:plotText, size:11}} },
+                { displayModeBar:false, responsive:true }
+            );
+        }, 100);
+    }
+
+    // ── PROFILE PANEL ─────────────────────────────────────────────────────
+    let currentUser = null;
+
+    async function doSignOut() {
+        await authFetch(`${API}/api/auth/logout`, { method: 'POST' });
+        sessionStorage.clear();
+        window.location.href = '/';
+    }
+
+    function toggleProfilePanel() {
+        const panel = document.getElementById('profile-panel');
+        panel.classList.toggle('open');
+        // Data already pre-loaded on login — no reload needed
+    }
+
+    async function loadAdminStats() {
+        try {
+            const res = await authFetch(`${API}/api/admin/stats`);
+            if (!res.ok) return;
+            const data = await res.json();
+
+            const adminSec = document.getElementById('admin-section');
+            if (adminSec) { adminSec.style.display = 'block'; adminSec.style.visibility = 'visible'; adminSec.style.opacity = '1'; }
+            document.getElementById('admin-total').textContent = data.total_users;
+            document.getElementById('admin-today').textContent = data.new_today;
+            document.getElementById('admin-active').textContent = data.active_7d;
+            document.getElementById('admin-uploads-stat').textContent = data.total_uploads;
+
+            // Signups chart
+            const days = [...data.signups_by_day].reverse();
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const plotBg = isDark ? '#0f1829' : '#ffffff';
+            const plotText = isDark ? '#e8edf5' : '#0d1526';
+            document.getElementById('admin-chart').innerHTML = '<div id="admin-chart-plot"></div>';
+            Plotly.newPlot('admin-chart-plot',
+                [{ type:'bar', x: days.map(d=>d.day), y: days.map(d=>d.count), marker:{color:'#c8962e'} }],
+                { margin:{t:10,b:30,l:30,r:10}, height:140,
+                  paper_bgcolor: plotBg, plot_bgcolor: plotBg,
+                  font:{color:plotText,family:'Sora',size:10},
+                  xaxis:{gridcolor:'#1a2d4a',tickfont:{size:9},type:'category'},
+                  yaxis:{gridcolor:'#1a2d4a',tickfont:{size:9}} },
+                { displayModeBar:false, responsive:true }
+            );
+
+            // Recent users — mask email
+            function maskEmail(email) {
+                const [user, domain] = email.split('@');
+                return user.charAt(0) + '***@' + domain;
+            }
+            function maskName(name) {
+                const parts = name.split(' ');
+                return parts[0] + (parts[1] ? ' ' + parts[1].charAt(0) + '.' : '');
+            }
+            document.getElementById('admin-users').innerHTML = data.recent_users.slice(0,4).map(u => `
+                <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+                    <div style="width:28px;height:28px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">${u.name.charAt(0).toUpperCase()}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${maskName(u.name)}</div>
+                        <div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${maskEmail(u.email)}</div>
+                    </div>
+                    <div style="font-size:10px;color:var(--accent);flex-shrink:0">${u.upload_count} uploads</div>
+                </div>`).join('');
+
+            // Store for chart drilling
+            window._adminData = data;
+        } catch(e) {}
+    }
+
+
+    // ── ALL USERS TABLE ─────────────────────────────────────────────────
+    function showAllUsers() {
+        const data = window._adminData;
+        if (!data) return;
+
+        if (window.innerWidth <= 768) {
+            document.getElementById('profile-panel').classList.remove('open');
+        }
+
+        let existing = document.getElementById('admin-chart-overlay');
+        if (existing) existing.remove();
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const plotBg = isDark ? '#0f1829' : '#ffffff';
+        const plotText = isDark ? '#e8edf5' : '#0d1526';
+
+        function maskEmail(e) { const[u,d]=e.split('@'); return u[0]+'***@'+d; }
+        function maskName(n) { const p=n.split(' '); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
+        function timeSince(dateStr) {
+            if (!dateStr) return 'Never';
+            const d = new Date(dateStr);
+            const mins = Math.floor((Date.now()-d)/60000);
+            if (mins < 60) return mins+'m ago';
+            if (mins < 1440) return Math.floor(mins/60)+'h ago';
+            return Math.floor(mins/1440)+'d ago';
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'admin-chart-overlay';
+        overlay.className = 'fade-in';
+        overlay.style.cssText = 'position:fixed;top:60px;left:280px;right:360px;bottom:0;background:var(--bg);z-index:80;overflow-y:auto;padding:28px';
+
+        overlay.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+                <div>
+                    <h2 style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px">All Users</h2>
+                    <p style="font-size:12px;color:var(--text3)">${data.total_users} total · ${data.active_7d} active in last 7 days</p>
+                </div>
+                <button onclick="document.getElementById('admin-chart-overlay').remove()" style="background:none;border:1px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:7px;cursor:pointer;font-family:Sora,sans-serif;font-size:12px;font-weight:600">Close</button>
+            </div>
+
+            <!-- Summary cards -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+                    <div style="font-size:24px;font-weight:700;color:var(--accent)">${data.total_users}</div>
+                    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Total Users</div>
+                </div>
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+                    <div style="font-size:24px;font-weight:700;color:#6366f1">${data.new_today}</div>
+                    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:4px">New Today</div>
+                </div>
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+                    <div style="font-size:24px;font-weight:700;color:var(--green)">${data.active_7d}</div>
+                    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Active 7d</div>
+                </div>
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+                    <div style="font-size:24px;font-weight:700;color:#d97706">${data.total_uploads}</div>
+                    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Total Uploads</div>
+                </div>
+            </div>
+
+            <!-- Users table -->
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <thead>
+                        <tr>
+                            <th style="background:var(--navy);color:rgba(255,255,255,0.6);padding:12px 16px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:600">#</th>
+                            <th style="background:var(--navy);color:rgba(255,255,255,0.6);padding:12px 16px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:600">User</th>
+                            <th style="background:var(--navy);color:rgba(255,255,255,0.6);padding:12px 16px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:600">Email</th>
+                            <th style="background:var(--navy);color:rgba(255,255,255,0.6);padding:12px 16px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:600">Joined</th>
+                            <th style="background:var(--navy);color:rgba(255,255,255,0.6);padding:12px 16px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:600">Status</th>
+                            <th style="background:var(--navy);color:rgba(255,255,255,0.6);padding:12px 16px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:600">Uploads</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.recent_users.slice(0,25).map((u,i) => `
+                        <tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+                            <td style="padding:12px 16px;color:var(--text3);font-family:JetBrains Mono,monospace">${i+1}</td>
+                            <td style="padding:12px 16px">
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <div style="width:30px;height:30px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0">${u.name.charAt(0).toUpperCase()}</div>
+                                    <span style="font-weight:600;color:var(--text)">${maskName(u.name)}</span>
+                                </div>
+                            </td>
+                            <td style="padding:12px 16px;color:var(--text2);font-family:JetBrains Mono,monospace;font-size:11px">${maskEmail(u.email)}</td>
+                            <td style="padding:12px 16px;color:var(--text2);font-size:11px">${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
+                            <td style="padding:12px 16px">
+                ${(u.upload_count || 0) > 0
+                    ? '<span style="padding:3px 10px;border-radius:99px;background:rgba(26,158,106,0.12);border:1px solid rgba(26,158,106,0.25);font-size:10px;font-weight:600;color:var(--green)">Active</span>'
+                    : '<span style="padding:3px 10px;border-radius:99px;background:rgba(74,88,112,0.12);border:1px solid rgba(74,88,112,0.25);font-size:10px;font-weight:600;color:var(--text3)">Inactive</span>'}
+            </td>
+                            <td style="padding:12px 16px;font-weight:700;color:var(--accent);font-family:JetBrains Mono,monospace">${u.upload_count}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <p style="font-size:11px;color:var(--text3);margin-top:12px;text-align:center" id="users-count-label">Showing 25 of ${data.recent_users.length} users</p>
+            ${data.recent_users.length > 25 ? `<div style="text-align:center;margin-top:12px">
+                <button onclick="loadMoreUsers()" id="load-more-btn" style="padding:8px 24px;background:var(--navy);color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sora,sans-serif">Load more</button>
+            </div>` : ''}
+        `;
+
+        document.querySelector('.main-content').appendChild(overlay);
+        overlay.scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+
+    // ── LOAD MORE USERS ─────────────────────────────────────────────────
+    let _usersShown = 25;
+    function loadMoreUsers() {
+        const data = window._adminData;
+        if (!data) return;
+        _usersShown += 25;
+        function maskEmail(e) { const[u,d]=e.split('@'); return u[0]+'***@'+d; }
+        function maskName(n) { const p=n.split(' '); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
+        const tbody = document.querySelector('#admin-chart-overlay table tbody');
+        if (!tbody) return;
+        const newRows = data.recent_users.slice(_usersShown-25, _usersShown).map((u,i) => `
+        <tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+            <td style="padding:12px 16px;color:var(--text3);font-family:JetBrains Mono,monospace">${_usersShown-25+i+1}</td>
+            <td style="padding:12px 16px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:30px;height:30px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0">${u.name.charAt(0).toUpperCase()}</div>
+                    <span style="font-weight:600;color:var(--text)">${maskName(u.name)}</span>
+                </div>
+            </td>
+            <td style="padding:12px 16px;color:var(--text2);font-family:JetBrains Mono,monospace;font-size:11px">${maskEmail(u.email)}</td>
+            <td style="padding:12px 16px;color:var(--text2);font-size:11px">${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
+            <td style="padding:12px 16px">${(u.upload_count||0)>0?'<span style="padding:3px 10px;border-radius:99px;background:rgba(26,158,106,0.12);border:1px solid rgba(26,158,106,0.25);font-size:10px;font-weight:600;color:var(--green)">Active</span>':'<span style="padding:3px 10px;border-radius:99px;background:rgba(74,88,112,0.12);border:1px solid rgba(74,88,112,0.25);font-size:10px;font-weight:600;color:var(--text3)">Inactive</span>'}</td>
+            <td style="padding:12px 16px;font-weight:700;color:var(--accent);font-family:JetBrains Mono,monospace">${u.upload_count}</td>
+        </tr>`).join('');
+        tbody.insertAdjacentHTML('beforeend', newRows);
+        document.getElementById('users-count-label').textContent = `Showing ${Math.min(_usersShown, data.recent_users.length)} of ${data.recent_users.length} users`;
+        if (_usersShown >= data.recent_users.length) {
+            const btn = document.getElementById('load-more-btn');
+            if (btn) btn.style.display = 'none';
+        }
+    }
+
+    // ── MOBILE ──────────────────────────────────────────────────────────
+    function toggleMobileSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        const isOpen = sidebar.classList.contains('mobile-open');
+        sidebar.classList.toggle('mobile-open', !isOpen);
+        overlay.style.display = isOpen ? 'none' : 'block';
+    }
+
+    // Close sidebar on file upload on mobile
+    function closeMobileSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        sidebar.classList.remove('mobile-open');
+        overlay.style.display = 'none';
+    }
+
+    // Auto close sidebar after upload on mobile
+    const origHandleUpload = handleFileUpload;
+    handleFileUpload = function(file) {
+        closeMobileSidebar();
+        return origHandleUpload(file);
+    };
+
+  </script>
+
+  <!-- Share Modal -->
+  <div id="share-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeShareModal()">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div>
+          <div class="modal-title">Share Report</div>
+          <div class="modal-sub">Generate a link to share this analysis. Optionally add a PIN to protect it.</div>
+        </div>
+        <button onclick="closeShareModal()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:22px;line-height:1;margin-left:12px">×</button>
+      </div>
+      <div class="modal-label">PIN Protection (optional)</div>
+      <input type="password" id="share-pin-input" class="modal-input" placeholder="Leave blank for no PIN" maxlength="8">
+      <div style="font-size:11px;color:var(--text3);margin-top:-10px;margin-bottom:16px">If set, viewers must enter this PIN to see the report.</div>
+      <button class="modal-btn" onclick="generateShareLink()">Generate Share Link</button>
+      <div id="share-link-box" class="share-link-box">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:6px">Your Share Link</div>
+        <div id="share-link-url" class="share-link-url"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="copy-btn" onclick="copyShareLink()">Copy Link</button>
+          <button class="copy-btn" onclick="openShareLink()" style="background:var(--green)">Open in New Tab</button>
+        </div>
+        <div id="share-pin-reminder" style="display:none;margin-top:10px;padding:8px 10px;background:rgba(217,119,6,0.1);border-radius:6px;border:1px solid rgba(217,119,6,0.2)">
+          <span style="font-size:11px;color:#d97706;font-weight:600">PIN set — share this separately with the recipient.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Profile Panel -->
+  <div id="profile-panel" class="profile-panel">
+    <div class="profile-panel-inner">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">My Account</span>
+        <button onclick="toggleProfilePanel()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:22px;line-height:1">×</button>
+      </div>
+
+      <!-- Avatar -->
+      <div style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);margin-bottom:20px">
+        <div id="panel-avatar" style="width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#0d1526;flex-shrink:0"></div>
+        <div>
+          <div id="panel-name" style="font-size:14px;font-weight:700;color:var(--text)"></div>
+          <div id="panel-email" style="font-size:11px;color:var(--text3)"></div>
+          <div id="panel-joined" style="font-size:10px;color:var(--green);margin-top:2px"></div>
+        </div>
+      </div>
+
+      <!-- Usage -->
+      <div class="profile-section">
+        <div class="profile-section-title">My Usage</div>
+        <div class="profile-stat"><span style="color:var(--text2)">Total Uploads</span><span id="panel-uploads" style="font-weight:700;color:var(--accent)">—</span></div>
+        <div class="profile-stat"><span style="color:var(--text2)">Member Since</span><span id="panel-since" style="font-weight:600;color:var(--text)">—</span></div>
+      </div>
+
+      <!-- Admin Traffic -->
+      <div id="admin-section" class="profile-section">
+        <div class="profile-section-title">Platform Traffic</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+          <div onclick="showAdminChart('signups')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div id="admin-total" style="font-size:22px;font-weight:700;color:var(--accent)">—</div>
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Total Users</div>
+            <div style="font-size:8px;color:var(--text3);margin-top:2px">Click to view</div>
+          </div>
+          <div onclick="showAdminChart('today')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer" onmouseover="this.style.borderColor='#6366f1'" onmouseout="this.style.borderColor='var(--border)'">
+            <div id="admin-today" style="font-size:22px;font-weight:700;color:#6366f1">—</div>
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:2px">New Today</div>
+            <div style="font-size:8px;color:var(--text3);margin-top:2px">Click to view</div>
+          </div>
+          <div onclick="showAdminChart('active')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div id="admin-active" style="font-size:22px;font-weight:700;color:var(--green)">—</div>
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Active 7d</div>
+            <div style="font-size:8px;color:var(--text3);margin-top:2px">Click to view</div>
+          </div>
+          <div onclick="showAdminChart('uploads')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;cursor:pointer" onmouseover="this.style.borderColor='#d97706'" onmouseout="this.style.borderColor='var(--border)'">
+            <div id="admin-uploads-stat" style="font-size:22px;font-weight:700;color:#d97706">—</div>
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Uploads</div>
+            <div style="font-size:8px;color:var(--text3);margin-top:2px">Click to view</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3)">Recent Signups</div>
+          <button onclick="showAllUsers()" style="font-size:10px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;font-family:Sora,sans-serif">View all →</button>
+        </div>
+        <div id="admin-users" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
+      <button onclick="doSignOut()" style="width:100%;padding:11px;background:transparent;color:var(--text2);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sora,sans-serif;margin-top:16px" onmouseover="this.style.borderColor='#dc2626';this.style.color='#dc2626'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Mobile FAB upload -->
+  <button class="mobile-upload-fab" onclick="document.getElementById('file-input').click()" title="Upload file">+</button>
+
+  <!-- Mobile sidebar overlay -->
+  <div id="mobile-overlay" onclick="toggleMobileSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:55"></div>
+
+</body>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sagini AI Analytics — Sign In</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 38'><rect width='38' height='38' rx='10' fill='%230d1f4e'/><text x='19' y='27' font-family='Georgia,serif' font-size='24' font-weight='700' fill='%23b8962e' text-anchor='middle'>S</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#060b15;--surface:#0c1528;--surface2:#111e35;--border:#1a2d4a;
+      --text:#e8edf5;--text2:#7a8ba8;--text3:#3a4d6a;
+      --accent:#c8962e;--accent2:#e8b84a;--navy:#0d1f4e;--navy2:#162660;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:'Sora',sans-serif; min-height:100vh; display:flex; flex-direction:column; }
+    .page { flex:1; display:flex; align-items:center; justify-content:center; padding:40px 20px; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:40px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,0.4); }
+    .logo { display:flex; align-items:center; gap:10px; margin-bottom:32px; justify-content:center; }
+    .s-logo { width:40px; height:40px; background:var(--navy); border-radius:10px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(200,150,46,0.3); }
+    .s-logo span { font-family:Georgia,serif; font-size:24px; font-weight:700; color:var(--accent); }
+    .logo-text { font-size:16px; font-weight:700; color:#fff; }
+    .logo-sub { font-size:9px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; }
+    .tabs { display:flex; background:var(--surface2); border-radius:10px; padding:4px; margin-bottom:28px; }
+    .tab { flex:1; padding:9px; text-align:center; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; color:var(--text2); border:none; background:none; font-family:'Sora',sans-serif; }
+    .tab.active { background:var(--navy); color:white; }
+    .form-group { margin-bottom:16px; }
+    label { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:6px; }
+    input { width:100%; padding:12px 14px; background:var(--surface2); border:1.5px solid var(--border); border-radius:9px; color:var(--text); font-size:13px; font-family:'Sora',sans-serif; outline:none; transition:border-color 0.2s; }
+    input:focus { border-color:var(--accent); }
+    input::placeholder { color:var(--text3); }
+    .btn { width:100%; padding:13px; background:var(--accent); color:#0d1526; border:none; border-radius:9px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Sora',sans-serif; transition:all 0.2s; margin-top:8px; }
+    .btn:hover { background:var(--accent2); transform:translateY(-1px); }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .error { background:rgba(220,38,38,0.1); border:1px solid rgba(220,38,38,0.25); border-radius:8px; padding:10px 14px; font-size:12px; color:#f87171; margin-bottom:16px; display:none; }
+    .success { background:rgba(26,158,106,0.1); border:1px solid rgba(26,158,106,0.25); border-radius:8px; padding:10px 14px; font-size:12px; color:#34d399; margin-bottom:16px; display:none; }
+    .divider { text-align:center; font-size:11px; color:var(--text3); margin:20px 0; }
+    .guest-btn { width:100%; padding:11px; background:transparent; color:var(--text2); border:1px solid var(--border); border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Sora',sans-serif; transition:all 0.2s; }
+    .guest-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .note { font-size:11px; color:var(--text3); text-align:center; margin-top:20px; line-height:1.6; }
+    .bg-grid {
+      position:fixed; inset:0; z-index:-1;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(13,31,78,0.6) 0%, transparent 70%);
+    }
+  </style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="page">
+  <div class="card">
+    <div class="logo">
+      <div class="s-logo"><span>S</span></div>
+      <div>
+        <div class="logo-text">Sagini AI Analytics</div>
+        <div class="logo-sub">Data Intelligence Platform</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      <button class="tab" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+    </div>
+
+    <div id="error-box" class="error"></div>
+    <div id="success-box" class="success"></div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div style="position:relative">
+          <input type="password" id="login-password" placeholder="Your password" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:44px">
+          <button type="button" onclick="togglePwd('login-password',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;font-family:Sora,sans-serif;font-weight:600">Show</button>
+        </div>
+      </div>
+      <button class="btn" id="login-btn" onclick="doLogin()">Sign In</button>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signup-form" style="display:none">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="signup-name" placeholder="Your name" onkeydown="if(event.key==='Enter')doSignup()">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doSignup()">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div style="position:relative">
+          <input type="password" id="signup-password" placeholder="At least 8 characters" oninput="checkStrength(this.value)" onkeydown="if(event.key==='Enter')doSignup()" style="padding-right:44px">
+          <button type="button" onclick="togglePwd('signup-password',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;font-family:Sora,sans-serif;font-weight:600">Show</button>
+        </div>
+        <div id="strength-bar" style="height:3px;border-radius:99px;margin-top:6px;background:var(--border);transition:all 0.3s">
+          <div id="strength-fill" style="height:100%;border-radius:99px;width:0%;transition:all 0.3s"></div>
+        </div>
+        <div id="strength-label" style="font-size:10px;color:var(--text3);margin-top:4px"></div>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <div style="position:relative">
+          <input type="password" id="signup-confirm" placeholder="Repeat your password" onkeydown="if(event.key==='Enter')doSignup()" style="padding-right:44px">
+          <button type="button" onclick="togglePwd('signup-confirm',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;font-family:Sora,sans-serif;font-weight:600">Show</button>
+        </div>
+      </div>
+      <button class="btn" id="signup-btn" onclick="doSignup()">Create Account</button>
+    </div>
+
+    <div class="divider">or</div>
+    <button class="guest-btn" onclick="window.location.href='/app'">Continue without account</button>
+    <p class="note">By signing up you agree to our Terms of Service and Privacy Policy.<br>Your data is private and never shared.</p>
+  </div>
+</div>
+
+<script>
+  const API = window.location.origin;
+
+  // Check if already logged in
+  fetch(`${API}/api/auth/me`).then(r => {
+    if (r.ok) window.location.href = '/app';
+  }).catch(() => {});
+
+  // Check URL param for tab
+  if (window.location.search.includes('signup')) switchTab('signup');
+
+  function switchTab(tab) {
+    document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('signup-form').style.display = tab === 'signup' ? 'block' : 'none';
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+    hideMessages();
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-box');
+    el.textContent = msg; el.style.display = 'block';
+    document.getElementById('success-box').style.display = 'none';
+  }
+
+  function showSuccess(msg) {
+    const el = document.getElementById('success-box');
+    el.textContent = msg; el.style.display = 'block';
+    document.getElementById('error-box').style.display = 'none';
+  }
+
+  function hideMessages() {
+    document.getElementById('error-box').style.display = 'none';
+    document.getElementById('success-box').style.display = 'none';
+  }
+
+  function togglePwd(id, btn) {
+    const input = document.getElementById(id);
+    if (input.type === 'password') {
+      input.type = 'text'; btn.textContent = 'Hide';
+    } else {
+      input.type = 'password'; btn.textContent = 'Show';
+    }
+  }
+
+  function checkStrength(val) {
+    const fill = document.getElementById('strength-fill');
+    const label = document.getElementById('strength-label');
+    let score = 0;
+    if (val.length >= 8) score++;
+    if (val.length >= 12) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+    const levels = [
+      { pct:'20%', color:'#dc2626', text:'Very weak' },
+      { pct:'40%', color:'#d97706', text:'Weak' },
+      { pct:'60%', color:'#eab308', text:'Fair' },
+      { pct:'80%', color:'#22c55e', text:'Strong' },
+      { pct:'100%', color:'#16a34a', text:'Very strong' },
+    ];
+    const l = levels[Math.min(score, 4)];
+    fill.style.width = l.pct;
+    fill.style.background = l.color;
+    label.textContent = val.length ? l.text : '';
+    label.style.color = l.color;
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) { showError('Please enter your email and password.'); return; }
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true; btn.textContent = 'Signing in...';
+    try {
+      const res = await fetch(`${API}/api/auth/login`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({email, password}), credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.detail || 'Login failed.'); return; }
+      sessionStorage.setItem('sagini_user', JSON.stringify({name: data.name, token: data.token}));
+      sessionStorage.setItem('sagini_user', JSON.stringify(data));
+      showSuccess(`Welcome back, ${data.name}!`);
+      setTimeout(() => window.location.href = '/app', 800);
+    } catch(e) {
+      showError('Something went wrong. Please try again.');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Sign In';
+    }
+  }
+
+  async function doSignup() {
+    const name = document.getElementById('signup-name').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+    const confirm = document.getElementById('signup-confirm').value;
+    if (!name || !email || !password || !confirm) { showError('Please fill in all fields.'); return; }
+    if (password.length < 8) { showError('Password must be at least 8 characters.'); return; }
+    if (password !== confirm) { showError('Passwords do not match.'); return; }
+    if (!/[A-Z]/.test(password) || !/[0-9]/.test(password)) { showError('Password must contain at least one uppercase letter and one number.'); return; }
+    const btn = document.getElementById('signup-btn');
+    btn.disabled = true; btn.textContent = 'Creating account...';
+    try {
+      const res = await fetch(`${API}/api/auth/signup`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name, email, password}), credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.detail || 'Signup failed.'); return; }
+      showSuccess(`Account created! Please sign in to continue.`);
+      setTimeout(() => switchTab('login'), 1500);
+    } catch(e) {
+      showError('Something went wrong. Please try again.');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Create Account';
+    }
+  }
+</script>
+</body>
+</html>
