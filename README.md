@@ -1,44 +1,3 @@
-# AI Analytics Dashboard
-
-An AI-powered data analytics tool built with Python (FastAPI + Pandas) and Claude AI. Upload a CSV or Excel file and get automatic charts, statistics, and AI-powered insights in seconds.
-
-## Features
-
-- Upload CSV or Excel files
-- Automatic chart generation (histogram, bar, pie, heatmap, line)
-- AI-powered insights using Claude
-- Natural language querying — ask questions about your data
-- Column-level statistics
-- Data preview table
-- Sample data included
-
-## Tech Stack
-
-- **Backend:** Python, FastAPI, Pandas, Plotly, Anthropic Claude API
-- **Frontend:** HTML, Tailwind CSS, Plotly.js
-
-## Setup
-
-### 1. Backend
-
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate  # Mac/Linux
-pip install -r requirements.txt
-```
-
-### 2. Configure API Key
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and add your Anthropic API key:
-```
-ANTHROPIC_API_KEY=your_key_here
-```
-
 Get your API key at: https://console.anthropic.com
 
 ### 3. Run the backend
@@ -52,6 +11,7 @@ uvicorn main:app --reload --port 8000
 Open `frontend/index.html` in your browser.
 
 Or serve it with Python:
+
 ```bash
 cd frontend
 python3 -m http.server 3000
@@ -68,7 +28,18 @@ Then visit http://localhost:3000
 
 ## API Endpoints
 
-- `POST /api/upload` — Upload and analyse a file
-- `POST /api/query` — Ask a question about the data
-- `GET /api/health` — Health check
-- `GET /docs` — Interactive API documentation
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/upload` | Upload and analyse a file |
+| `POST` | `/api/query` | Ask a question about the data |
+| `GET`  | `/api/health` | Health check |
+| `GET`  | `/docs` | Interactive API documentation |
+
+## Architecture
+
+The backend exposes a REST API built with FastAPI. Uploaded files are parsed with Pandas, statistics and charts are generated server-side with Plotly, and Claude generates natural-language insights from the processed data. The frontend is a lightweight HTML/Tailwind interface that renders the charts and handles the query flow.
+
+## Author
+
+Built by **Enoch Sagini** — Full-Stack & AI Engineer.
+Portfolio: [sagini.me](https://sagini.me) · GitHub: [@IamSagini](https://github.com/IamSagini)
